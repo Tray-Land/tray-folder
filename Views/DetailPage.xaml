@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TrayFolder.Views.DetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Key="Left" Invoked="Previous_Invoked" />
+        <KeyboardAccelerator Key="Right" Invoked="Next_Invoked" />
+        <KeyboardAccelerator
+            Key="C"
+            Invoked="Copy_Invoked"
+            Modifiers="Control" />
+    </Page.KeyboardAccelerators>
+
+    <Grid Padding="12,10,12,12" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  Header: back, name, previous/next through the folder  -->
+        <Grid ColumnSpacing="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button
+                x:Name="BackButton"
+                AutomationProperties.Name="Back"
+                Click="BackButton_Click"
+                Style="{StaticResource FlyoutIconButtonStyle}"
+                ToolTipService.ToolTip="Back">
+                <FontIcon FontSize="14" Glyph="&#xE72B;" />
+            </Button>
+            <Grid
+                Grid.Column="1"
+                Margin="4,0,0,0"
+                ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <!--  Always draggable, even when the preview itself is busy with text or a player  -->
+                <Grid
+                    x:Name="DragHandle"
+                    Width="28"
+                    Height="28"
+                    AutomationProperties.Name="Drag to copy this file"
+                    Background="Transparent"
+                    CanDrag="True"
+                    DragStarting="PreviewArea_DragStarting"
+                    DropCompleted="PreviewArea_DropCompleted"
+                    ToolTipService.ToolTip="Drag to copy this file">
+                    <FontIcon
+                        x:Name="HandleGlyph"
+                        FontSize="18"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Image x:Name="HandleThumbnail" Stretch="Uniform" />
+                </Grid>
+                <TextBlock
+                    x:Name="NameText"
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    MaxLines="1"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    TextTrimming="CharacterEllipsis" />
+            </Grid>
+            <Button
+                x:Name="PreviousButton"
+                Grid.Column="2"
+                AutomationProperties.Name="Previous file"
+                Click="PreviousButton_Click"
+                Style="{StaticResource FlyoutIconButtonStyle}"
+                ToolTipService.ToolTip="Previous (Left arrow)">
+                <FontIcon FontSize="14" Glyph="&#xE76B;" />
+            </Button>
+            <Button
+                x:Name="NextButton"
+                Grid.Column="3"
+                AutomationProperties.Name="Next file"
+                Click="NextButton_Click"
+                Style="{StaticResource FlyoutIconButtonStyle}"
+                ToolTipService.ToolTip="Next (Right arrow)">
+                <FontIcon FontSize="14" Glyph="&#xE76C;" />
+            </Button>
+        </Grid>
+
+        <!--  The preview; drag it out just like a row in the list  -->
+        <Grid
+            x:Name="PreviewArea"
+            Grid.Row="1"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CanDrag="True"
+            CornerRadius="8"
+            DragStarting="PreviewArea_DragStarting"
+            DropCompleted="PreviewArea_DropCompleted"
+            ToolTipService.ToolTip="Drag to copy this file">
+
+            <Image
+                x:Name="PreviewImage"
+                Margin="8"
+                Stretch="Uniform"
+                Visibility="Collapsed" />
+
+            <ScrollViewer
+                x:Name="PreviewTextScroller"
+                Padding="12,8"
+                HorizontalScrollBarVisibility="Auto"
+                HorizontalScrollMode="Auto"
+                Visibility="Collapsed">
+                <TextBlock
+                    x:Name="PreviewText"
+                    FontFamily="Cascadia Mono, Consolas"
+                    FontSize="12"
+                    IsTextSelectionEnabled="True" />
+            </ScrollViewer>
+
+            <MediaPlayerElement
+                x:Name="PreviewMedia"
+                AreTransportControlsEnabled="True"
+                AutoPlay="False"
+                Stretch="Uniform"
+                Visibility="Collapsed" />
+
+            <!--  No preview: the shell's large icon or thumbnail  -->
+            <StackPanel
+                x:Name="NoPreview"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="12"
+                Visibility="Collapsed">
+                <Grid Width="128" Height="128">
+                    <FontIcon
+                        x:Name="NoPreviewGlyph"
+                        FontSize="64"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Image x:Name="NoPreviewThumbnail" Stretch="Uniform" />
+                </Grid>
+                <TextBlock
+                    x:Name="NoPreviewText"
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="No preview available" />
+            </StackPanel>
+
+            <ProgressRing
+                x:Name="PreviewLoading"
+                Width="32"
+                Height="32"
+                IsActive="False" />
+
+            <!--  PDF pages  -->
+            <StackPanel
+                x:Name="PdfPager"
+                Margin="0,0,0,8"
+                Padding="4,2"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                Orientation="Horizontal"
+                Spacing="4"
+                Visibility="Collapsed">
+                <Button
+                    AutomationProperties.Name="Previous page"
+                    Click="PdfPrevious_Click"
+                    Style="{StaticResource FlyoutIconButtonStyle}">
+                    <FontIcon FontSize="12" Glyph="&#xE70E;" />
+                </Button>
+                <TextBlock
+                    x:Name="PdfPageText"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+                <Button
+                    AutomationProperties.Name="Next page"
+                    Click="PdfNext_Click"
+                    Style="{StaticResource FlyoutIconButtonStyle}">
+                    <FontIcon FontSize="12" Glyph="&#xE70D;" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!--  Details  -->
+        <Grid
+            x:Name="InfoGrid"
+            Grid.Row="2"
+            ColumnSpacing="12"
+            RowSpacing="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+        </Grid>
+
+        <!--  Actions  -->
+        <Grid Grid.Row="3" ColumnSpacing="6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button
+                HorizontalAlignment="Stretch"
+                AutomationProperties.Name="Open"
+                Click="Open_Click"
+                Style="{StaticResource AccentButtonStyle}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="14" Glyph="&#xE8E5;" />
+                    <TextBlock Text="Open" />
+                </StackPanel>
+            </Button>
+            <Button
+                x:Name="CopyButton"
+                Grid.Column="1"
+                AutomationProperties.Name="Copy"
+                HorizontalAlignment="Stretch"
+                Click="Copy_Click"
+                ToolTipService.ToolTip="Copy the file, then paste it anywhere (Ctrl+C)">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="14" Glyph="&#xE8C8;" />
+                    <TextBlock x:Name="CopyText" Text="Copy" />
+                </StackPanel>
+            </Button>
+            <Button
+                Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.Name="Show in File Explorer"
+                Click="ShowInExplorer_Click"
+                ToolTipService.ToolTip="Show in File Explorer">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="14" Glyph="&#xEC50;" />
+                    <TextBlock Text="Show" />
+                </StackPanel>
+            </Button>
+            <Button
+                Grid.Column="3"
+                AutomationProperties.Name="More actions"
+                ToolTipService.ToolTip="More">
+                <FontIcon FontSize="14" Glyph="&#xE712;" />
+                <Button.Flyout>
+                    <MenuFlyout Placement="TopEdgeAlignedRight">
+                        <MenuFlyoutItem Click="OpenWith_Click" Text="Open with…">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE7AC;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Click="CopyPath_Click" Text="Copy as path">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE62F;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+        </Grid>
+    </Grid>
+</Page>

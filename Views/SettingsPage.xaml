@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TrayFolder.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <Grid Padding="12,10,12,12" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid ColumnSpacing="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+                x:Name="BackButton"
+                AutomationProperties.Name="Back"
+                Click="BackButton_Click"
+                Style="{StaticResource FlyoutIconButtonStyle}"
+                ToolTipService.ToolTip="Back">
+                <FontIcon FontSize="14" Glyph="&#xE72B;" />
+            </Button>
+            <TextBlock
+                Grid.Column="1"
+                Margin="6,0,0,0"
+                VerticalAlignment="Center"
+                Style="{StaticResource BodyStrongTextBlockStyle}"
+                Text="Settings" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="4">
+                <TextBlock
+                    Margin="0,4,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="Folder" />
+
+                <Grid
+                    Padding="16,12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Show this folder" />
+                        <TextBlock
+                            x:Name="FolderPathText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Row="1"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button Click="ChangeFolder_Click" Content="Change folder…" />
+                        <Button
+                            x:Name="ResetFolderButton"
+                            Click="ResetFolder_Click"
+                            Content="Use Downloads" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid
+                    Padding="16,12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    ColumnSpacing="12"
+                    CornerRadius="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Recent folders" />
+                        <TextBlock
+                            x:Name="RecentText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button
+                        x:Name="ClearRecentButton"
+                        Grid.Column="1"
+                        Click="ClearRecent_Click"
+                        Content="Clear" />
+                </Grid>
+
+                <TextBlock
+                    Margin="0,16,0,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="General" />
+
+                <Grid
+                    Padding="16,12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    ColumnSpacing="12"
+                    CornerRadius="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Start with Windows" />
+                        <TextBlock
+                            x:Name="StartupDescription"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="Keep the tray icon ready after you sign in."
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch
+                        x:Name="StartupToggle"
+                        Grid.Column="1"
+                        MinWidth="0"
+                        AutomationProperties.Name="Start with Windows"
+                        IsEnabled="False"
+                        OffContent=""
+                        OnContent=""
+                        Toggled="StartupToggle_Toggled" />
+                </Grid>
+
+                <TextBlock
+                    Margin="0,16,0,0"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="Tip: drag files out of the list, or select them and press Ctrl+C. Sort, filter and view options are the buttons next to Search."
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    x:Name="VersionText"
+                    Margin="0,8,0,0"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
