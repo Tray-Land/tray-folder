@@ -263,7 +263,7 @@ public sealed partial class FlyoutPage : Page, IDisposable
     private void UpdateHeader()
     {
         FolderTitle.Text = FolderService.DisplayName(_rootPath);
-        App.Current.SetTrayStatus(FolderTitle.Text);
+        App.Current.SetTrayFolder(FolderTitle.Text);
         ToolTipService.SetToolTip(FolderButton, _rootPath);
         FolderGlyph.Glyph = FolderService.KnownFolders().FirstOrDefault(k => IsSamePath(k.Path, _rootPath)).Glyph ?? "";
 

@@ -72,7 +72,7 @@ public partial class App : Application
             (_, _) => _dispatcher.TryEnqueue(ShowFlyout), null, Timeout.Infinite, executeOnlyOnce: false);
 
         InitializeTrayIcon();
-        SetTrayStatus(FolderService.DisplayName(FolderService.RootPath));
+        SetTrayFolder(FolderService.DisplayName(FolderService.RootPath));
 
         // First run: show where the app lives instead of launching into silence.
         if (!SettingsService.HasLaunchedBefore)
@@ -86,15 +86,15 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Sets the tray tooltip under the app name, e.g. "3 new" or null for just the name.</summary>
-    public void SetTrayStatus(string? status)
+    /// <summary>Sets the tray tooltip to name the folder a click opens, or just the app name for null.</summary>
+    public void SetTrayFolder(string? folderName)
     {
         if (_trayIcon is null)
         {
             return;
         }
 
-        string tooltip = string.IsNullOrWhiteSpace(status) ? DisplayName : $"{DisplayName}\n{status}";
+        string tooltip = string.IsNullOrWhiteSpace(folderName) ? DisplayName : $"{DisplayName}\nOpens {folderName}";
         _trayIcon.Tooltip = tooltip.Length > MaxTooltipLength ? tooltip[..MaxTooltipLength] : tooltip;
     }
 
