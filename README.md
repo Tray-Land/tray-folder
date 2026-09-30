@@ -4,10 +4,15 @@
 
 Tray Folder is a small, tray-only WinUI 3 app for Windows 10 and 11. It has no main window. It only does work while the flyout is open.
 
+<p align="center">
+  <img src="docs/flyout.png" alt="The Tray Folder flyout showing the Downloads folder, grouped by Yesterday and Last week, with thumbnails, a search box, and sort, filter and view buttons" width="420">
+</p>
+
 ## Features
 
 - **Drag files out.** Drag one or many files from the flyout into Outlook, Teams, Slack, a browser upload box, a Word document or any other drop target. Drags are copy-only, so nothing moves or gets deleted. You can also select files and press <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 - **Newest first.** By default the list is sorted by date modified, newest first, and grouped the way Explorer groups Downloads (Today, Yesterday, Earlier this week, and so on).
+- **Pin it open.** The pin button keeps the flyout open while you drag several files, one after another.
 - **Explorer-style view options.** Sort by name, date, type or size. Group by name, date, kind or size. Filter by kind (image, video, audio, document, archive, program) or by age (today, last week, month, year). Show or hide folders, hidden files and file extensions. Switch between a list and tiles.
 - **Search.** Type to filter the folder as you go.
 - **Real thumbnails.** Rows show the same shell thumbnails as Explorer.
