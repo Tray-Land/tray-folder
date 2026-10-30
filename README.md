@@ -35,7 +35,9 @@ Tray Folder is a small, tray-only WinUI 3 app for Windows 10 and 11. It has no m
 
 ## Install
 
-Signed MSIX packages (x64 and ARM64) are published on the [Releases page](https://github.com/Tray-Land/tray-folder/releases). Download the one for your machine and open it.
+Download [TrayFolder.appinstaller](https://github.com/Tray-Land/tray-folder/releases/latest/download/TrayFolder.appinstaller) and open it. Windows installs the right version for your PC (x64 or ARM64) and keeps it updated.
+
+Requires Windows 10 (2004) or later, or Windows 11.
 
 ## Build from source
 
@@ -64,7 +66,14 @@ dotnet test TrayFolder.Tests
 
 ### Releasing
 
-`build-msix-for-gh.ps1` builds and signs the MSIX packages for each platform, verifies the signatures, tags the commit and creates a **draft** GitHub release for you to review and publish. Signing uses a local `sign-msix` profile function that lives outside this repo. Use `-SkipRelease` to build and sign only.
+`build-msix-for-gh.ps1` builds a signed x64 + ARM64 `.msixbundle` and the auto-updating `.appinstaller` feed, verifies the signatures, tags the commit and creates a **draft** GitHub release for you to review. Signing uses a local `sign-msix` profile function that lives outside this repo.
+
+1. Bump `Identity/@Version` in `Package.appxmanifest`, commit and push (updates only move to a higher version).
+2. Run `.\build-msix-for-gh.ps1`, then review the draft.
+3. Publish it as the latest release **without changing the tag**; the feed's addresses contain the tag.
+4. Run `.\build-msix-for-gh.ps1 -VerifyPublished`.
+
+Use `-SkipRelease` to build and sign only, or `-SkipRelease -NoSign` to check the build without signing.
 
 ## How it's built
 
