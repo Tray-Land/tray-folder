@@ -447,7 +447,7 @@ public sealed partial class DetailPage : Page, IDisposable
             return;
         }
 
-        FileActions.FillDragData(args.Data, [_item]);
+        FileActions.FillDragData(args.Data, new[] { _item });
         args.AllowedOperations = DataPackageOperation.Copy;
         args.DragUI.SetContentFromDataPackage();
         _host.SetDragging(true);
@@ -488,7 +488,7 @@ public sealed partial class DetailPage : Page, IDisposable
 
     private async Task CopyAsync()
     {
-        if (_item is not null && await FileActions.CopyToClipboardAsync([_item]))
+        if (_item is not null && await FileActions.CopyToClipboardAsync(new[] { _item }))
         {
             CopyText.Text = "Copied";
         }
@@ -498,7 +498,7 @@ public sealed partial class DetailPage : Page, IDisposable
     {
         if (_item is not null)
         {
-            FileActions.CopyPaths([_item]);
+            FileActions.CopyPaths(new[] { _item });
         }
     }
 

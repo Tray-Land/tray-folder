@@ -27,7 +27,7 @@ public static class FolderViewPolicy
 
         if (options.GroupBy == GroupField.None)
         {
-            return visible.Count == 0 ? [] : [new EntryGroup(string.Empty, visible)];
+            return visible.Count == 0 ? Array.Empty<EntryGroup>() : new[] { new EntryGroup(string.Empty, visible) };
         }
 
         // Group keys carry a rank so groups come out in a natural order (newest first, A before Q),

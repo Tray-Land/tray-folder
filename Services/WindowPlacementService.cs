@@ -155,12 +155,21 @@ internal static class WindowPlacementService
 
     private static nint ReadHandle(object boxed)
     {
-        // WinUIEx stores its own CsWin32 HWND struct; read its single pointer-sized field.
-        FieldInfo? valueField = boxed.GetType().GetField("Value", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        return valueField?.GetValue(boxed) switch
+        // WinUIEx stores its own CsWin32 HWND struct, a blittable wrapper around one pointer.
+        // Pinning the box and reading it avoids reflecting over a field the trimmer may remove.
+        if (Marshal.SizeOf(boxed) != IntPtr.Size)
         {
-            nint n => n,
-            _ => 0,
-        };
+            return 0;
+        }
+
+        GCHandle pin = GCHandle.Alloc(boxed, GCHandleType.Pinned);
+        try
+        {
+            return Marshal.ReadIntPtr(pin.AddrOfPinnedObject());
+        }
+        finally
+        {
+            pin.Free();
+        }
     }
 }
