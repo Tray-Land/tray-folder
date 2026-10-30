@@ -41,6 +41,9 @@ BundleArtifacts/
 # Publish output
 publish/
 *.pubxml
+# The csproj and the release script rely on these two (settings only, no credentials).
+!Properties/PublishProfiles/win-x64.pubxml
+!Properties/PublishProfiles/win-arm64.pubxml
 PublishScripts/
 
 # Code analysis and tooling
