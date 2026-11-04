@@ -36,6 +36,21 @@ public interface IFileActions
     Task CopyPathsAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken);
 }
 
+/// <summary>An item sent to the Recycle Bin; <paramref name="RecordPath"/> is its <c>$I</c> record there, which restoring needs.</summary>
+public sealed record DeletedItem(FileEntry Entry, string RecordPath);
+
+/// <summary>What a delete did: <paramref name="Recycled"/> can be undone, <paramref name="Gone"/> went without a bin record, <paramref name="Remaining"/> is still on disk.</summary>
+public sealed record DeleteOutcome(IReadOnlyList<DeletedItem> Recycled, int Gone, int Remaining);
+
+public interface IFileDeleter
+{
+    /// <summary>Sends the entries to the Recycle Bin the way Explorer does, with the shell's own prompts and error dialogs.</summary>
+    Task<DeleteOutcome> DeleteAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken);
+
+    /// <summary>Puts recycled items back where they were; returns how many came back.</summary>
+    Task<int> RestoreAsync(IReadOnlyList<DeletedItem> items, CancellationToken cancellationToken);
+}
+
 public enum StartupState
 {
     Unavailable,

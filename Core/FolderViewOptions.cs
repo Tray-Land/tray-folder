@@ -42,7 +42,9 @@ public sealed record FileEntry(
     long Size,
     DateTime Modified,
     DateTime Created,
-    bool IsHidden)
+    bool IsHidden,
+    bool IsSystem = false,
+    bool IsReadOnly = false)
 {
     public string Extension => IsFolder ? string.Empty : Path.GetExtension(Name);
 

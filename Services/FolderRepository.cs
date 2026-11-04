@@ -82,7 +82,10 @@ internal sealed partial class FolderRepository : IFolderRepository
                 isFolder ? 0 : ((FileInfo)info).Length,
                 info.LastWriteTime,
                 info.CreationTime,
-                attributes.HasFlag(FileAttributes.Hidden)));
+                attributes.HasFlag(FileAttributes.Hidden),
+                attributes.HasFlag(FileAttributes.System),
+                // Explorer sets read-only on folders to mean "customized", so only a file's flag is a warning.
+                !isFolder && attributes.HasFlag(FileAttributes.ReadOnly)));
         }
 
         return entries;
