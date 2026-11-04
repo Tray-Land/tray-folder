@@ -15,23 +15,32 @@ public sealed partial class FolderViewModel : VisibleViewModel
 
     private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(150);
 
+    /// <summary>How long the "Undo delete" pill stays up.</summary>
+    internal static readonly TimeSpan UndoWindow = TimeSpan.FromSeconds(8);
+
     private readonly IFolderRepository _folders;
     private readonly IFileActions _files;
+    private readonly IFileDeleter _deleter;
     private readonly IFileResources _resources;
     private readonly IFolderWatcher _watcher;
     private readonly IFlyoutNavigation _navigation;
     private readonly TimeProvider _time;
     private readonly LatestRequest _refresh = new();
     private readonly LatestRequest _searchDelay = new();
+    private readonly LatestRequest _deleteNotice = new();
+    private IReadOnlyList<DeletedItem> _undoable = [];
+    private IReadOnlyList<FileItemViewModel> _dragged = [];
     private Dictionary<string, FileItemViewModel> _rows = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<FileEntry> _entries = [];
     private bool _updatingOptions;
 
-    public FolderViewModel(IFolderRepository folders, IFileActions files, IFileResources resources, IFolderWatcher watcher,
-        IFlyoutNavigation navigation, ITextProvider text, TimeProvider time, IErrorReporter errors) : base(text, errors)
+    public FolderViewModel(IFolderRepository folders, IFileActions files, IFileDeleter deleter, IFileResources resources,
+        IFolderWatcher watcher, IFlyoutNavigation navigation, ITextProvider text, TimeProvider time, IErrorReporter errors)
+        : base(text, errors)
     {
         _folders = folders;
         _files = files;
+        _deleter = deleter;
         _resources = resources;
         _watcher = watcher;
         _navigation = navigation;
@@ -131,6 +140,25 @@ public sealed partial class FolderViewModel : VisibleViewModel
     [ObservableProperty]
     public partial IReadOnlyList<FolderChoice> FolderChoices { get; private set; } = [];
 
+    /// <summary>A drag out of the list is under way, so the Recycle Bin drop target shows.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDeleteNoticeShown))]
+    public partial bool IsDragging { get; private set; }
+
+    /// <summary>The "Deleted · Undo delete" pill is up.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDeleteNoticeShown))]
+    public partial bool IsDeleteNoticeOpen { get; private set; }
+
+    /// <summary>The pill gives its place to the Recycle Bin target while a drag is under way.</summary>
+    public bool IsDeleteNoticeShown => IsDeleteNoticeOpen && !IsDragging;
+
+    [ObservableProperty]
+    public partial string DeleteNoticeText { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool CanUndoDelete { get; private set; }
+
     /// <summary>The row the context menu last opened on.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanPreviewTarget), nameof(CanOpenTargetWith), nameof(PreviewTargetText))]
@@ -145,6 +173,19 @@ public sealed partial class FolderViewModel : VisibleViewModel
 
     public string DragTitle(IReadOnlyList<FileItemViewModel> items) =>
         items.Count == 1 ? items[0].Entry.Name : CountOf(items.Count);
+
+    /// <summary>A drag out of the list started; dropping on the Recycle Bin target deletes these rows.</summary>
+    public void BeginDrag(IReadOnlyList<FileItemViewModel> items)
+    {
+        _dragged = items;
+        IsDragging = true;
+    }
+
+    public void EndDrag()
+    {
+        _dragged = [];
+        IsDragging = false;
+    }
 
     protected override void OnActivated()
     {
@@ -169,6 +210,10 @@ public sealed partial class FolderViewModel : VisibleViewModel
     {
         _folders.RootChanged -= RootChanged;
         _watcher.Stop();
+
+        // Deleted files stay in the Recycle Bin; only the quick undo goes.
+        DismissDeleteNotice();
+        EndDrag();
     }
 
     protected override void OnFailureReported(Exception exception) =>
@@ -402,6 +447,131 @@ public sealed partial class FolderViewModel : VisibleViewModel
     {
         SearchText = string.Empty;
         ClearFilters();
+    }
+
+    /// <summary>Deletes the context menu's target rows (the whole selection if it opened on a selected row).</summary>
+    [RelayCommand]
+    private Task DeleteTargetsAsync() => DeleteAsync(Targets);
+
+    /// <summary>Deletes the rows being dragged, when they are dropped on the Recycle Bin target.</summary>
+    [RelayCommand]
+    private Task DeleteDraggedAsync() => DeleteAsync([.. _dragged]);
+
+    [RelayCommand]
+    private async Task UndoDeleteAsync()
+    {
+        IReadOnlyList<DeletedItem> items = _undoable;
+        DismissDeleteNotice();
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        await RunFileActionAsync(async token =>
+        {
+            int restored = await _deleter.RestoreAsync(items, token);
+            await RefreshCommand.ExecuteAsync(null);
+            token.ThrowIfCancellationRequested();
+            if (restored < items.Count)
+            {
+                ShowStatus(Text.Get("RestoreIncompleteTitle"), Text.Format("RestoreIncomplete", items.Count - restored), canChoose: false);
+            }
+            else
+            {
+                CountText = Text.Format(restored == 1 ? "RestoredItem" : "RestoredItems", restored);
+            }
+        });
+    }
+
+    [RelayCommand]
+    private void DismissDelete() => DismissDeleteNotice();
+
+    private Task DeleteAsync(List<FileItemViewModel> items) =>
+        items.Count == 0 || DeleteItemsCommand.IsRunning ? Task.CompletedTask : DeleteItemsCommand.ExecuteAsync(items);
+
+    // Nothing is touched until the user has answered any warning. Not canceled by hiding once the
+    // shell has started: a half-finished delete helps nobody.
+    [RelayCommand]
+    private Task DeleteItemsAsync(List<FileItemViewModel> items) => RunFileActionAsync(async token =>
+    {
+        List<FileEntry> entries = items.ConvertAll(i => i.Entry);
+        DeleteAssessment assessment = DeletePolicy.Assess(entries);
+        if (assessment.RequiresConfirmation && !await _navigation.ConfirmAsync(ConfirmationFor(entries, assessment), token))
+        {
+            return;
+        }
+
+        token.ThrowIfCancellationRequested();
+        DeleteOutcome outcome;
+        using (_navigation.KeepOpen())
+        {
+            outcome = await _deleter.DeleteAsync(entries, CancellationToken.None);
+        }
+
+        await RefreshCommand.ExecuteAsync(null);
+        if (IsVisible)
+        {
+            ShowDeleteNotice(outcome);
+        }
+    });
+
+    private ConfirmRequest ConfirmationFor(List<FileEntry> entries, DeleteAssessment assessment)
+    {
+        List<string> reasons = [];
+        void Reason(DeleteConcern concern, string key, params object[] arguments)
+        {
+            if (assessment.Concerns.HasFlag(concern))
+            {
+                reasons.Add(Text.Format(key, arguments));
+            }
+        }
+
+        Reason(DeleteConcern.ManyItems, "DeleteWarnMany", assessment.Count);
+        Reason(DeleteConcern.Folders, "DeleteWarnFolders", assessment.Folders);
+        Reason(DeleteConcern.Programs, "DeleteWarnPrograms", assessment.Programs);
+        Reason(DeleteConcern.SystemFiles, "DeleteWarnSystem", assessment.SystemFiles);
+        Reason(DeleteConcern.ReadOnlyFiles, "DeleteWarnReadOnly", assessment.ReadOnlyFiles);
+        Reason(DeleteConcern.LargeSize, "DeleteWarnLarge", FolderViewPolicy.FormatSize(assessment.TotalSize));
+        reasons.Add(Text.Get("DeleteWarnRecycle"));
+
+        string title = entries.Count == 1 ? Text.Format("DeleteConfirmOne", entries[0].Name) : Text.Format("DeleteConfirmMany", entries.Count);
+        return new ConfirmRequest(title, string.Join(Environment.NewLine, reasons), Text.Get("DeleteConfirm"), Text.Get("Cancel"));
+    }
+
+    private void ShowDeleteNotice(DeleteOutcome outcome)
+    {
+        int deleted = outcome.Recycled.Count + outcome.Gone;
+        if (deleted == 0)
+        {
+            return;
+        }
+
+        _undoable = outcome.Recycled;
+        CanUndoDelete = outcome.Recycled.Count > 0;
+        DeleteNoticeText = deleted == 1 && outcome.Recycled.Count == 1
+            ? Text.Format("DeletedOne", outcome.Recycled[0].Entry.Name)
+            : Text.Format("DeletedMany", deleted);
+        IsDeleteNoticeOpen = true;
+        _ = HideDeleteNoticeAfterDelayAsync();
+    }
+
+    private async Task HideDeleteNoticeAfterDelayAsync()
+    {
+        using LatestRequest.Scope request = _deleteNotice.Begin(VisibleToken);
+        try
+        {
+            await Task.Delay(UndoWindow, _time, request.Token);
+            DismissDeleteNotice();
+        }
+        catch (OperationCanceledException) when (request.Token.IsCancellationRequested) { }
+    }
+
+    private void DismissDeleteNotice()
+    {
+        _deleteNotice.Cancel();
+        _undoable = [];
+        CanUndoDelete = false;
+        IsDeleteNoticeOpen = false;
     }
 
     private Task CopyAsync(List<FileItemViewModel> items) => RunFileActionAsync(async token =>

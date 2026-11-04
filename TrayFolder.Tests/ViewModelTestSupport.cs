@@ -83,6 +83,24 @@ internal sealed class TestNavigation : IFlyoutNavigation
     public int BackCalls { get; private set; }
     public int SettingsCalls { get; private set; }
     public string? PickedFolder { get; set; }
+    public bool ConfirmAnswer { get; set; } = true;
+    public List<ConfirmRequest> Confirmations { get; } = [];
+    public int KeepOpenCount { get; private set; }
+    public int KeepOpenReleased { get; private set; }
+    public Task<bool> ConfirmAsync(ConfirmRequest request, CancellationToken cancellationToken)
+    {
+        Confirmations.Add(request);
+        return Task.FromResult(ConfirmAnswer);
+    }
+    public IDisposable KeepOpen()
+    {
+        KeepOpenCount++;
+        return new Release(this);
+    }
+    private sealed class Release(TestNavigation owner) : IDisposable
+    {
+        public void Dispose() => owner.KeepOpenReleased++;
+    }
     public void ShowMainPage() => BackCalls++;
     public void ShowSettingsPage() => SettingsCalls++;
     public void ShowDetailPage(FileItemViewModel item, IReadOnlyList<FileItemViewModel> siblings)
@@ -213,4 +231,33 @@ internal static class TestEntries
 
     public static FileItemViewModel Item(string name, TestResources? resources = null, TestErrors? errors = null) =>
         new(File(name), new DateTime(2026, 11, 3), new TestTextProvider(), resources ?? new TestResources(), errors ?? new TestErrors());
+}
+
+internal sealed class TestDeleter : IFileDeleter
+{
+    public List<IReadOnlyList<FileEntry>> Deletes { get; } = [];
+    public List<IReadOnlyList<DeletedItem>> Restores { get; } = [];
+
+    /// <summary>How many of a delete's entries land in the bin with a record; the rest count as gone for good.</summary>
+    public int Recyclable { get; set; } = int.MaxValue;
+    public int RestoredCount { get; set; } = -1;
+    public Exception? Error { get; set; }
+
+    public Task<DeleteOutcome> DeleteAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken)
+    {
+        Deletes.Add(entries);
+        if (Error is { } error)
+        {
+            return Task.FromException<DeleteOutcome>(error);
+        }
+
+        List<DeletedItem> recycled = [.. entries.Take(Recyclable).Select(e => new DeletedItem(e, @"C:\$Recycle.Bin\S\$I" + e.Name))];
+        return Task.FromResult(new DeleteOutcome(recycled, entries.Count - recycled.Count, 0));
+    }
+
+    public Task<int> RestoreAsync(IReadOnlyList<DeletedItem> items, CancellationToken cancellationToken)
+    {
+        Restores.Add(items);
+        return Task.FromResult(RestoredCount >= 0 ? RestoredCount : items.Count);
+    }
 }

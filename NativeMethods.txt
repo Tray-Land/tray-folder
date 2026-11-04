@@ -29,3 +29,7 @@ SetProcessWorkingSetSize
 SetWindowLong
 SHAppBarMessage
 Shell_NotifyIconGetRect
+
+SHFileOperation
+SHFILEOPSTRUCTW
+FO_DELETE

@@ -94,4 +94,26 @@
   <data name="TilesView.Text" xml:space="preserve"><value>Tiles</value></data>
   <data name="Extensions.Text" xml:space="preserve"><value>File name extensions</value></data>
   <data name="HiddenItems.Text" xml:space="preserve"><value>Hidden items</value></data>
+  <data name="MenuDelete.Text" xml:space="preserve"><value>Delete</value></data>
+  <data name="SwipeDelete.Text" xml:space="preserve"><value>Delete</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="DeleteConfirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>
+  <data name="DeleteConfirmOne" xml:space="preserve"><value>Delete “{0}”?</value></data>
+  <data name="DeleteConfirmMany" xml:space="preserve"><value>Delete {0} items?</value></data>
+  <data name="DeleteWarnMany" xml:space="preserve"><value>That's a lot of items at once: {0}.</value></data>
+  <data name="DeleteWarnFolders" xml:space="preserve"><value>Folders ({0}) go with everything inside them.</value></data>
+  <data name="DeleteWarnPrograms" xml:space="preserve"><value>Includes programs, installers or scripts ({0}).</value></data>
+  <data name="DeleteWarnSystem" xml:space="preserve"><value>Includes system files ({0}). Deleting them can break Windows or apps.</value></data>
+  <data name="DeleteWarnReadOnly" xml:space="preserve"><value>Includes read-only files ({0}), which are marked as protected.</value></data>
+  <data name="DeleteWarnLarge" xml:space="preserve"><value>About {0} of data.</value></data>
+  <data name="DeleteWarnRecycle" xml:space="preserve"><value>They'll be moved to the Recycle Bin, where you can restore them.</value></data>
+  <data name="DeletedOne" xml:space="preserve"><value>Deleted “{0}”</value></data>
+  <data name="DeletedMany" xml:space="preserve"><value>Deleted {0} items</value></data>
+  <data name="RestoredItem" xml:space="preserve"><value>Restored 1 item</value></data>
+  <data name="RestoredItems" xml:space="preserve"><value>Restored {0} items</value></data>
+  <data name="RestoreIncompleteTitle" xml:space="preserve"><value>Couldn't restore everything</value></data>
+  <data name="RestoreIncomplete" xml:space="preserve"><value>{0} not restored: the name is taken or Windows already emptied it from the Recycle Bin.</value></data>
+  <data name="UndoDelete.Content" xml:space="preserve"><value>Undo delete</value></data>
+  <data name="DismissNotice.AutomationProperties.Name" xml:space="preserve"><value>Dismiss</value></data>
+  <data name="RecycleBinDrop.Text" xml:space="preserve"><value>Drop here to delete</value></data>
 </root>

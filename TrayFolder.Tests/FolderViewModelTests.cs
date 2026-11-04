@@ -8,14 +8,17 @@ namespace TrayFolder.Tests;
 public sealed class FolderViewModelTests
 {
     private static FolderViewModel Create(TestFolders folders, FakeTimeProvider? time = null, TestErrors? errors = null,
-        TestWatcher? watcher = null, TestFileActions? files = null, TestResources? resources = null, TestNavigation? navigation = null) =>
-        new(folders, files ?? new TestFileActions(), resources ?? new TestResources(), watcher ?? new TestWatcher(),
-            navigation ?? new TestNavigation(), new TestTextProvider(), time ?? TestTime.Create(), errors ?? new TestErrors());
+        TestWatcher? watcher = null, TestFileActions? files = null, TestResources? resources = null, TestNavigation? navigation = null,
+        TestDeleter? deleter = null) =>
+        new(folders, files ?? new TestFileActions(), deleter ?? new TestDeleter(), resources ?? new TestResources(),
+            watcher ?? new TestWatcher(), navigation ?? new TestNavigation(), new TestTextProvider(), time ?? TestTime.Create(),
+            errors ?? new TestErrors());
 
     private static async Task<FolderViewModel> ShowAsync(TestFolders folders, FakeTimeProvider? time = null, TestErrors? errors = null,
-        TestWatcher? watcher = null, TestFileActions? files = null, TestResources? resources = null, TestNavigation? navigation = null)
+        TestWatcher? watcher = null, TestFileActions? files = null, TestResources? resources = null, TestNavigation? navigation = null,
+        TestDeleter? deleter = null)
     {
-        FolderViewModel vm = Create(folders, time, errors, watcher, files, resources, navigation);
+        FolderViewModel vm = Create(folders, time, errors, watcher, files, resources, navigation, deleter);
         vm.OnShown();
         await vm.RefreshCommand.ExecutionTask!;
         return vm;

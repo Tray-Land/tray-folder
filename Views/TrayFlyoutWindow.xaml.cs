@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Windows.Storage.Pickers;
 using System.Diagnostics;
@@ -67,6 +68,7 @@ public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
     private SettingsPage? _settingsPage;
     private DetailPage? _detailPage;
     private bool _isDragging;
+    private bool _isConfirming;
     private int _keepOpenCount;
     private bool _isShowing;
     private bool _isPopupVisible;
@@ -99,7 +101,8 @@ public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
         InitializeComponent();
         _hwnd = (HWND)WindowNative.GetWindowHandle(this);
         _page = new FlyoutPage(this, new FolderViewModel(
-            folders, _files, _files, new FolderWatcher(DispatcherQueue), this, text, TimeProvider.System, errors));
+            folders, _files, new RecycleBinService(() => _hwnd), _files, new FolderWatcher(DispatcherQueue), this, text,
+            TimeProvider.System, errors));
         PageHost.Content = _page;
 
         SystemBackdrop = _backdrop;
@@ -205,6 +208,63 @@ public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
             {
                 Activate();
                 PInvoke.SetForegroundWindow(_hwnd);
+            }
+        }
+    }
+
+    public async Task<bool> ConfirmAsync(ConfirmRequest request, CancellationToken cancellationToken)
+    {
+        // A ContentDialog can't be shown twice at once, and a second warning shouldn't stack on the first.
+        if (_isConfirming || PopupRoot.XamlRoot is null)
+        {
+            return false;
+        }
+
+        _isConfirming = true;
+        ContentDialog dialog = new()
+        {
+            XamlRoot = PopupRoot.XamlRoot,
+            RequestedTheme = PopupRoot.RequestedTheme,
+            Title = request.Title,
+            Content = new TextBlock { Text = request.Message, TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = request.ConfirmText,
+            CloseButtonText = request.CancelText,
+            DefaultButton = ContentDialogButton.Close,
+        };
+        using CancellationTokenRegistration hide = cancellationToken.Register(() => DispatcherQueue.TryEnqueue(dialog.Hide));
+        try
+        {
+            return await dialog.ShowAsync() == ContentDialogResult.Primary && !cancellationToken.IsCancellationRequested;
+        }
+        finally
+        {
+            _isConfirming = false;
+        }
+    }
+
+    public IDisposable KeepOpen()
+    {
+        _keepOpenCount++;
+        return new KeepOpenScope(this);
+    }
+
+    private sealed class KeepOpenScope(TrayFlyoutWindow window) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            window._keepOpenCount--;
+            if (window._isPopupVisible)
+            {
+                window.Activate();
+                PInvoke.SetForegroundWindow(window._hwnd);
             }
         }
     }
