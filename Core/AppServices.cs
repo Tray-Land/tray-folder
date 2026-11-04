@@ -29,6 +29,10 @@ public interface IFileActions
     Task ShowInExplorerAsync(string path, CancellationToken cancellationToken);
     Task OpenFolderAsync(string path, CancellationToken cancellationToken);
     Task CopyAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken);
+
+    /// <summary>Puts the files on the clipboard to be moved: pasting in Explorer moves them out of this folder.</summary>
+    Task CutAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken);
+
     Task CopyPathsAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken);
 }
 

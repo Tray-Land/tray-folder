@@ -11,69 +11,12 @@
     KeyDown="Page_KeyDown">
 
     <Page.Resources>
-        <!--  One context menu shared by every row; Opening tells the ViewModel which row it's for.  -->
-        <MenuFlyout x:Key="ItemMenu" Opening="ItemMenu_Opening">
-            <MenuFlyoutItem
-                AutomationProperties.AutomationId="PreviewMenuItem"
-                Command="{x:Bind ViewModel.PreviewTargetCommand}"
-                Text="{x:Bind ViewModel.PreviewTargetText, Mode=OneWay}"
-                Visibility="{x:Bind ViewModel.CanPreviewTarget, Mode=OneWay}">
-                <MenuFlyoutItem.Icon>
-                    <FontIcon Glyph="&#xE8A1;" />
-                </MenuFlyoutItem.Icon>
-            </MenuFlyoutItem>
-            <MenuFlyoutItem
-                x:Uid="MenuOpen"
-                AutomationProperties.AutomationId="OpenMenuItem"
-                Command="{x:Bind ViewModel.OpenTargetsCommand}">
-                <MenuFlyoutItem.Icon>
-                    <FontIcon Glyph="&#xE8E5;" />
-                </MenuFlyoutItem.Icon>
-            </MenuFlyoutItem>
-            <MenuFlyoutItem
-                x:Uid="MenuOpenWith"
-                AutomationProperties.AutomationId="OpenWithRowMenuItem"
-                Command="{x:Bind ViewModel.OpenTargetWithCommand}"
-                Visibility="{x:Bind ViewModel.CanOpenTargetWith, Mode=OneWay}">
-                <MenuFlyoutItem.Icon>
-                    <FontIcon Glyph="&#xE7AC;" />
-                </MenuFlyoutItem.Icon>
-            </MenuFlyoutItem>
-            <MenuFlyoutSeparator />
-            <MenuFlyoutItem
-                x:Uid="MenuCopy"
-                AutomationProperties.AutomationId="CopyMenuItem"
-                Command="{x:Bind ViewModel.CopyTargetsCommand}"
-                KeyboardAcceleratorTextOverride="Ctrl+C">
-                <MenuFlyoutItem.Icon>
-                    <FontIcon Glyph="&#xE8C8;" />
-                </MenuFlyoutItem.Icon>
-            </MenuFlyoutItem>
-            <MenuFlyoutItem
-                x:Uid="MenuCopyPath"
-                AutomationProperties.AutomationId="CopyPathMenuItem"
-                Command="{x:Bind ViewModel.CopyTargetPathsCommand}">
-                <MenuFlyoutItem.Icon>
-                    <FontIcon Glyph="&#xE62F;" />
-                </MenuFlyoutItem.Icon>
-            </MenuFlyoutItem>
-            <MenuFlyoutSeparator />
-            <MenuFlyoutItem
-                x:Uid="MenuShowInExplorer"
-                AutomationProperties.AutomationId="ShowInExplorerMenuItem"
-                Command="{x:Bind ViewModel.ShowTargetInExplorerCommand}">
-                <MenuFlyoutItem.Icon>
-                    <FontIcon Glyph="&#xEC50;" />
-                </MenuFlyoutItem.Icon>
-            </MenuFlyoutItem>
-        </MenuFlyout>
-
         <DataTemplate x:Key="ListItemTemplate" x:DataType="viewmodels:FileItemViewModel">
             <Grid
                 Padding="0,6"
                 Background="Transparent"
                 ColumnSpacing="12"
-                ContextFlyout="{StaticResource ItemMenu}"
+                ContextRequested="Item_ContextRequested"
                 Opacity="{x:Bind ItemOpacity, Mode=OneTime}"
                 ToolTipService.ToolTip="{x:Bind Entry.Name, Mode=OneTime, FallbackValue=''}">
                 <Grid.ColumnDefinitions>
@@ -111,7 +54,7 @@
                 Height="124"
                 Padding="4"
                 Background="Transparent"
-                ContextFlyout="{StaticResource ItemMenu}"
+                ContextRequested="Item_ContextRequested"
                 Opacity="{x:Bind ItemOpacity, Mode=OneTime}"
                 RowSpacing="4"
                 ToolTipService.ToolTip="{x:Bind Entry.Name, Mode=OneTime, FallbackValue=''}">
@@ -172,8 +115,12 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!--  Header: which folder, then quick actions  -->
-        <Grid ColumnSpacing="2">
+        <!--  Header: which folder, then quick actions. Left/Right move between the buttons (XY focus); Up/Down are in code.  -->
+        <Grid
+            x:Name="HeaderRow"
+            ColumnSpacing="2"
+            PreviewKeyDown="Toolbar_PreviewKeyDown"
+            XYFocusKeyboardNavigation="Enabled">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -215,6 +162,7 @@
                 </DropDownButton.Flyout>
             </DropDownButton>
             <Button
+                x:Name="OpenFolderButton"
                 Grid.Column="1"
                 AutomationProperties.AutomationId="OpenFolderButton"
                 AutomationProperties.Name="Open in File Explorer"
@@ -238,6 +186,7 @@
                 <FontIcon FontSize="14" Glyph="&#xE718;" />
             </ToggleButton>
             <Button
+                x:Name="SettingsButton"
                 Grid.Column="3"
                 AutomationProperties.AutomationId="SettingsButton"
                 AutomationProperties.Name="Settings"
@@ -249,7 +198,12 @@
         </Grid>
 
         <!--  Search and Explorer-style view options  -->
-        <Grid Grid.Row="1" ColumnSpacing="2">
+        <Grid
+            x:Name="SearchRow"
+            Grid.Row="1"
+            ColumnSpacing="2"
+            PreviewKeyDown="Toolbar_PreviewKeyDown"
+            XYFocusKeyboardNavigation="Enabled">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -597,6 +551,7 @@
             DragItemsStarting="Items_DragItemsStarting"
             ItemTemplate="{StaticResource ListItemTemplate}"
             KeyDown="Items_KeyDown"
+            PreviewKeyDown="Items_PreviewKeyDown"
             SelectionChanged="Items_SelectionChanged"
             SelectionMode="Extended"
             Visibility="{x:Bind views:UiBindings.Hidden(ViewModel.IsTiles), Mode=OneWay}">
@@ -618,6 +573,7 @@
             DragItemsStarting="Items_DragItemsStarting"
             ItemTemplate="{StaticResource TileItemTemplate}"
             KeyDown="Items_KeyDown"
+            PreviewKeyDown="Items_PreviewKeyDown"
             SelectionChanged="Items_SelectionChanged"
             SelectionMode="Extended"
             Visibility="{x:Bind ViewModel.IsTiles, Mode=OneWay}">

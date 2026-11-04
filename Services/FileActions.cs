@@ -59,16 +59,23 @@ internal sealed class FileActions(Func<double> rasterizationScale) : IFileAction
         return pixels is null ? null : ShellThumbnail.ToImage(pixels);
     }
 
-    public async Task CopyAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken)
+    public Task CopyAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken) =>
+        SetClipboardFilesAsync(entries, DataPackageOperation.Copy, cancellationToken);
+
+    public Task CutAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken) =>
+        SetClipboardFilesAsync(entries, DataPackageOperation.Move, cancellationToken);
+
+    private static async Task SetClipboardFilesAsync(
+        IReadOnlyList<FileEntry> entries, DataPackageOperation operation, CancellationToken cancellationToken)
     {
         IStorageItem[] resolved = await Task.WhenAll(entries.Select(e => ResolveStorageItemAsync(e, cancellationToken)));
         cancellationToken.ThrowIfCancellationRequested();
         if (resolved.Length == 0)
         {
-            throw new InvalidOperationException("No files were selected for copying.");
+            throw new InvalidOperationException("No files were selected.");
         }
 
-        DataPackage data = new() { RequestedOperation = DataPackageOperation.Copy };
+        DataPackage data = new() { RequestedOperation = operation };
         data.SetStorageItems(resolved, readOnly: false);
         Clipboard.SetContent(data);
         Clipboard.Flush();

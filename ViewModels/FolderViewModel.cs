@@ -315,17 +315,15 @@ public sealed partial class FolderViewModel : VisibleViewModel
     private Task PreviewTargetAsync() => MenuTarget is { } target ? ActivateAsync(target) : Task.CompletedTask;
 
     [RelayCommand]
-    private Task OpenTargetsAsync()
+    private Task OpenTargetsAsync() => OpenAsync(Targets);
+
+    private Task OpenAsync(List<FileItemViewModel> items) => RunFileActionAsync(async token =>
     {
-        List<FileItemViewModel> targets = Targets;
-        return RunFileActionAsync(async token =>
+        foreach (FileItemViewModel item in items)
         {
-            foreach (FileItemViewModel item in targets)
-            {
-                await _files.OpenAsync(item.FullPath, token);
-            }
-        });
-    }
+            await _files.OpenAsync(item.FullPath, token);
+        }
+    });
 
     [RelayCommand]
     private Task OpenTargetWithAsync() =>
@@ -342,11 +340,24 @@ public sealed partial class FolderViewModel : VisibleViewModel
     private Task CopySelectionAsync() => CopyAsync([.. SelectedItems]);
 
     [RelayCommand]
-    private Task CopyTargetPathsAsync()
-    {
-        List<FileEntry> entries = [.. Targets.Select(i => i.Entry)];
-        return RunFileActionAsync(token => _files.CopyPathsAsync(entries, token));
-    }
+    private Task CutTargetsAsync() => CutAsync(Targets);
+
+    [RelayCommand(CanExecute = nameof(CanCopySelection))]
+    private Task CutSelectionAsync() => CutAsync([.. SelectedItems]);
+
+    [RelayCommand]
+    private Task CopyTargetPathsAsync() => CopyPathsAsync(Targets);
+
+    [RelayCommand(CanExecute = nameof(CanCopySelection))]
+    private Task CopySelectionPathsAsync() => CopyPathsAsync([.. SelectedItems]);
+
+    /// <summary>Opens the selection in each file's default app (Enter previews a single one inside the flyout).</summary>
+    [RelayCommand(CanExecute = nameof(CanCopySelection))]
+    private Task OpenSelectionAsync() => OpenAsync([.. SelectedItems]);
+
+    [RelayCommand(CanExecute = nameof(CanActivateSelection))]
+    private Task ShowSelectionInExplorerAsync() =>
+        RunFileActionAsync(token => _files.ShowInExplorerAsync(SelectedItems[0].FullPath, token));
 
     [RelayCommand]
     private void Sort(SortField field) => UpdateOptions(() =>
@@ -399,6 +410,24 @@ public sealed partial class FolderViewModel : VisibleViewModel
         token.ThrowIfCancellationRequested();
         CountText = Text.Format(items.Count == 1 ? "CopiedItem" : "CopiedItems", items.Count);
     });
+
+    private Task CutAsync(List<FileItemViewModel> items) => RunFileActionAsync(async token =>
+    {
+        await _files.CutAsync(items.ConvertAll(i => i.Entry), token);
+        token.ThrowIfCancellationRequested();
+        CountText = Text.Format(items.Count == 1 ? "CutItem" : "CutItems", items.Count);
+    });
+
+    private Task CopyPathsAsync(List<FileItemViewModel> items)
+    {
+        List<FileEntry> entries = [.. items.Select(i => i.Entry)];
+        return RunFileActionAsync(async token =>
+        {
+            await _files.CopyPathsAsync(entries, token);
+            token.ThrowIfCancellationRequested();
+            CountText = Text.Format(entries.Count == 1 ? "CopiedPath" : "CopiedPaths", entries.Count);
+        });
+    }
 
     private Task RunFileActionAsync(Func<CancellationToken, Task> action) => RunAsync("File action", action);
 

@@ -413,6 +413,46 @@ public sealed class FolderViewModelTests
     }
 
     [TestMethod]
+    public async Task SelectionShortcuts_CutCopyPathsAndOpen_ActOnTheSelection()
+    {
+        TestFileActions files = new();
+        TestFolders folders = new() { Entries = [TestEntries.File("a.txt"), TestEntries.File("b.txt")] };
+        using FolderViewModel vm = await ShowAsync(folders, files: files);
+        Assert.IsFalse(vm.CutSelectionCommand.CanExecute(null));
+        Assert.IsFalse(vm.CopySelectionPathsCommand.CanExecute(null));
+        Assert.IsFalse(vm.OpenSelectionCommand.CanExecute(null));
+        vm.SelectedItems.Add(vm.Items[0]);
+        vm.SelectedItems.Add(vm.Items[1]);
+
+        await vm.CutSelectionCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, files.Cuts.Single().Count);
+        Assert.AreEqual("Cut 2 items. Paste to move them.", vm.CountText);
+
+        await vm.CopySelectionPathsCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, files.PathCopies.Single().Count);
+        Assert.AreEqual("Copied 2 paths", vm.CountText);
+
+        await vm.OpenSelectionCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, files.Opens.Count);
+    }
+
+    [TestMethod]
+    public async Task ShowSelectionInExplorer_NeedsExactlyOneRow()
+    {
+        TestFileActions files = new();
+        TestFolders folders = new() { Entries = [TestEntries.File("a.txt"), TestEntries.File("b.txt")] };
+        using FolderViewModel vm = await ShowAsync(folders, files: files);
+        vm.SelectedItems.Add(vm.Items[0]);
+        vm.SelectedItems.Add(vm.Items[1]);
+        Assert.IsFalse(vm.ShowSelectionInExplorerCommand.CanExecute(null));
+
+        vm.SelectedItems.Remove(vm.Items[1]);
+        await vm.ShowSelectionInExplorerCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, files.Shown.Count);
+    }
+
+    [TestMethod]
     public async Task SelectedItems_Added_PrefetchesForDrag()
     {
         TestResources resources = new();

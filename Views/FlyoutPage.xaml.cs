@@ -1,8 +1,11 @@
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.Windows.ApplicationModel.Resources;
 using System.ComponentModel;
 using System.Windows.Input;
 using TrayFolder.Core;
@@ -23,6 +26,7 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
     private readonly TrayFlyoutWindow _host;
     private readonly HashSet<FileItemViewModel> _realizedItems = [];
     private bool _restoringSelection;
+    private bool _focusListWhenFilled;
 
     internal FlyoutPage(TrayFlyoutWindow host, FolderViewModel viewModel)
     {
@@ -46,14 +50,30 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
     public void OnShown()
     {
         ViewModel.OnShown();
-        ActiveView.Focus(FocusState.Programmatic);
+        ActiveView.Focus(FocusState.Keyboard);
+
+        // Showing re-reads the folder and rebuilds the list, which drops focus; put it back once the list fills.
+        _focusListWhenFilled = true;
+
+        // Coming back from the preview or settings doesn't rebuild the list, so also focus it as soon as it has laid out.
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (ViewModel.IsVisible && FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
+            {
+                ActiveView.Focus(FocusState.Keyboard);
+            }
+        });
         foreach (FileItemViewModel item in _realizedItems)
         {
             QueueThumbnail(item);
         }
     }
 
-    public void OnHidden() => ViewModel.OnHidden();
+    public void OnHidden()
+    {
+        _focusListWhenFilled = false;
+        ViewModel.OnHidden();
+    }
 
     public void Dispose()
     {
@@ -128,6 +148,17 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
         {
             _restoringSelection = false;
         }
+
+        if (_focusListWhenFilled && ViewModel.Items.Count > 0)
+        {
+            _focusListWhenFilled = false;
+
+            // Leave focus alone if the user has already moved on, for example into the search box.
+            if (FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
+            {
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => ActiveView.Focus(FocusState.Keyboard));
+            }
+        }
     }
 
     private void Items_Tapped(object sender, TappedRoutedEventArgs e)
@@ -150,16 +181,174 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
     {
         e.Handled = e.Key switch
         {
-            VirtualKey.Enter => TryExecute(ViewModel.ActivateSelectionCommand),
+            VirtualKey.C when IsModifierDown(VirtualKey.Control) && IsModifierDown(VirtualKey.Shift) =>
+                TryExecute(ViewModel.CopySelectionPathsCommand),
             VirtualKey.C when IsModifierDown(VirtualKey.Control) => TryExecute(ViewModel.CopySelectionCommand),
+            VirtualKey.X when IsModifierDown(VirtualKey.Control) => TryExecute(ViewModel.CutSelectionCommand),
             _ => false,
         };
+    }
+
+    // Preview, because the list consumes arrow keys before a plain KeyDown handler would see them.
+    private void Items_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        bool plain = !IsModifierDown(VirtualKey.Control) && !IsModifierDown(VirtualKey.Shift) && !IsModifierDown(VirtualKey.Menu);
+        e.Handled = e.Key switch
+        {
+            // Up from the top row continues to the search box instead of stopping at the list's edge.
+            VirtualKey.Up when plain && IsOnFirstRow() => SearchBox.Focus(FocusState.Keyboard),
+            // Down from the last row stays put; left to XY focus it would wrap around to the toolbar.
+            VirtualKey.Down when plain && IsOnLastRow() => true,
+            // Space toggles the focused row in or out of the selection, so several can be picked by keyboard.
+            VirtualKey.Space when !IsModifierDown(VirtualKey.Menu) => ToggleFocusedItem(),
+            // Enter is a click on the focused row: the row need not be selected first.
+            VirtualKey.Enter when !IsModifierDown(VirtualKey.Control) => ActivateFocusedItem(),
+            // Ctrl+Enter opens in the default app; Ctrl+Shift+E shows the file in Explorer.
+            VirtualKey.Enter when IsModifierDown(VirtualKey.Control) => TryExecute(ViewModel.OpenSelectionCommand),
+            VirtualKey.E when IsModifierDown(VirtualKey.Control) && IsModifierDown(VirtualKey.Shift) =>
+                TryExecute(ViewModel.ShowSelectionInExplorerCommand),
+            // The Menu key and Shift+F10 open the row menu, as a right-click does.
+            VirtualKey.Application => ShowMenuForFocusedItem(),
+            VirtualKey.F10 when IsModifierDown(VirtualKey.Shift) => ShowMenuForFocusedItem(),
+            _ => false,
+        };
+    }
+
+    // Up and Down between the toolbar rows. Left/Right inside a row is XY focus (see the XAML).
+    // The columns of the two rows line up, so Up from Sort lands on Open in Explorer and so on.
+    private void Toolbar_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key is not (VirtualKey.Up or VirtualKey.Down) ||
+            FocusManager.GetFocusedElement(XamlRoot) is not UIElement focused ||
+            focused is TextBox && e.Key == VirtualKey.Down)
+        {
+            return; // the search box's own handler takes Down
+        }
+
+        bool inSearchRow = ReferenceEquals(sender, SearchRow);
+        if (e.Key == VirtualKey.Up)
+        {
+            if (inSearchRow)
+            {
+                (focused switch
+                {
+                    var f when ReferenceEquals(f, SortButton) => OpenFolderButton,
+                    var f when ReferenceEquals(f, FilterButton) => PinButton,
+                    var f when ReferenceEquals(f, ViewButton) => SettingsButton,
+                    _ => (Control)FolderButton,
+                }).Focus(FocusState.Keyboard);
+            }
+
+            e.Handled = true; // the top row has nothing above it
+            return;
+        }
+
+        if (!inSearchRow)
+        {
+            SearchBox.Focus(FocusState.Keyboard);
+        }
+        else
+        {
+            FocusFirstItem(ActiveView.SelectedItem as FileItemViewModel);
+        }
+
+        e.Handled = true;
+    }
+
+    private void FocusFirstItem(FileItemViewModel? preferred)
+    {
+        if (ActiveView.Items.Count == 0)
+        {
+            return;
+        }
+
+        FileItemViewModel? item = preferred ?? ActiveView.Items[0] as FileItemViewModel;
+        if (item is null)
+        {
+            return;
+        }
+
+        ActiveView.SelectedIndex = -1;
+        ActiveView.SelectedItem = item;
+        ActiveView.ScrollIntoView(item);
+        ActiveView.Focus(FocusState.Keyboard);
+    }
+
+    /// <summary>Focus is on the top row of items, or on the first group header above it.</summary>
+    private bool IsOnFirstRow()
+    {
+        if (FocusManager.GetFocusedElement(XamlRoot) is not UIElement focused ||
+            ActiveView.ContainerFromIndex(0) is not UIElement first)
+        {
+            return false;
+        }
+
+        // A group header sits above the first item; the first header is part of the top row.
+        return focused is SelectorItem ? SameRow(focused, first) : IsAbove(focused, first);
+    }
+
+    private bool IsOnLastRow()
+    {
+        int count = ActiveView.Items.Count;
+        return count > 0 &&
+            FocusManager.GetFocusedElement(XamlRoot) is SelectorItem focused &&
+            ActiveView.ContainerFromIndex(count - 1) is UIElement last &&
+            SameRow(focused, last);
+    }
+
+    private double Top(UIElement element) =>
+        element.TransformToVisual(ActiveView).TransformPoint(new Windows.Foundation.Point()).Y;
+
+    private bool SameRow(UIElement a, UIElement b) => Math.Abs(Top(a) - Top(b)) < 1;
+
+    private bool IsAbove(UIElement a, UIElement b) => Top(a) < Top(b);
+
+    /// <summary>Previews or opens the focused row; with several rows selected and the focused one among them, opens them all.</summary>
+    private bool ActivateFocusedItem()
+    {
+        if (FocusManager.GetFocusedElement(XamlRoot) is not SelectorItem { Content: FileItemViewModel item })
+        {
+            return false;
+        }
+
+        if (ViewModel.SelectedItems.Count > 1 && ViewModel.SelectedItems.Contains(item))
+        {
+            return TryExecute(ViewModel.OpenSelectionCommand);
+        }
+
+        // Entering a folder rebuilds the list; keep the keyboard in it.
+        _focusListWhenFilled = item.IsFolder;
+        return TryExecute(ViewModel.ActivateCommand, item);
+    }
+
+    private bool ToggleFocusedItem()
+    {
+        if (FocusManager.GetFocusedElement(XamlRoot) is not SelectorItem { Content: FileItemViewModel } container)
+        {
+            return false;
+        }
+
+        container.IsSelected = !container.IsSelected;
+        return true;
+    }
+
+    private bool ShowMenuForFocusedItem()
+    {
+        if (FocusManager.GetFocusedElement(XamlRoot) is not SelectorItem { Content: FileItemViewModel item } container)
+        {
+            return false;
+        }
+
+        ViewModel.MenuTarget = item;
+        BuildItemMenu().ShowAt(container);
+        return true;
     }
 
     private void Page_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Back && FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
         {
+            _focusListWhenFilled = ViewModel.GoUpCommand.CanExecute(null);
             TryExecute(ViewModel.GoUpCommand);
             e.Handled = true;
         }
@@ -225,8 +414,71 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
     private void QueueThumbnail(FileItemViewModel item) =>
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => ViewModel.LoadThumbnail(item));
 
-    private void ItemMenu_Opening(object sender, object e) =>
-        ViewModel.MenuTarget = (sender as MenuFlyout)?.Target?.DataContext as FileItemViewModel;
+    // The row menu is built fresh for each right-click. A single MenuFlyout shared by every row
+    // (via ContextFlyout) could come back with no items after the page had been swapped out.
+    private void Item_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not FileItemViewModel item)
+        {
+            return;
+        }
+
+        ViewModel.MenuTarget = item;
+        MenuFlyout menu = BuildItemMenu();
+        if (args.TryGetPosition(sender, out Windows.Foundation.Point position))
+        {
+            menu.ShowAt(sender, new FlyoutShowOptions { Position = position });
+        }
+        else
+        {
+            menu.ShowAt((FrameworkElement)sender);
+        }
+
+        args.Handled = true;
+    }
+
+    private MenuFlyout BuildItemMenu()
+    {
+        ResourceLoader text = new();
+        FolderViewModel vm = ViewModel;
+        MenuFlyout menu = new();
+
+        MenuFlyoutItem Item(string label, string glyph, ICommand command, string automationId, string? keys = null)
+        {
+            MenuFlyoutItem entry = new()
+            {
+                Text = label,
+                Icon = new FontIcon { Glyph = glyph },
+                Command = command,
+            };
+            AutomationProperties.SetAutomationId(entry, automationId);
+            if (keys is not null)
+            {
+                entry.KeyboardAcceleratorTextOverride = keys;
+            }
+
+            return entry;
+        }
+
+        if (vm.CanPreviewTarget)
+        {
+            menu.Items.Add(Item(vm.PreviewTargetText, "", vm.PreviewTargetCommand, "PreviewMenuItem"));
+        }
+
+        menu.Items.Add(Item(text.GetString("MenuOpen/Text"), "", vm.OpenTargetsCommand, "OpenMenuItem", "Ctrl+Enter"));
+        if (vm.CanOpenTargetWith)
+        {
+            menu.Items.Add(Item(text.GetString("MenuOpenWith/Text"), "", vm.OpenTargetWithCommand, "OpenWithRowMenuItem"));
+        }
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Item(text.GetString("MenuCut/Text"), "", vm.CutTargetsCommand, "CutMenuItem", "Ctrl+X"));
+        menu.Items.Add(Item(text.GetString("MenuCopy/Text"), "", vm.CopyTargetsCommand, "CopyMenuItem", "Ctrl+C"));
+        menu.Items.Add(Item(text.GetString("MenuCopyPath/Text"), "", vm.CopyTargetPathsCommand, "CopyPathMenuItem", "Ctrl+Shift+C"));
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Item(text.GetString("MenuShowInExplorer/Text"), "", vm.ShowTargetInExplorerCommand, "ShowInExplorerMenuItem", "Ctrl+Shift+E"));
+        return menu;
+    }
 
     private void FolderMenu_Opening(object sender, object e)
     {
@@ -280,6 +532,7 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
 
     private void GoUp_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
+        _focusListWhenFilled = ViewModel.GoUpCommand.CanExecute(null);
         TryExecute(ViewModel.GoUpCommand);
         args.Handled = true;
     }
