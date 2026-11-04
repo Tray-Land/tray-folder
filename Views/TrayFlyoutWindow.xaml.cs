@@ -1,12 +1,14 @@
-using System.Diagnostics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Windows.Storage.Pickers;
+using System.Diagnostics;
 using TrayFolder.Controls;
-using TrayFolder.Models;
+using TrayFolder.Core;
 using TrayFolder.Services;
+using TrayFolder.ViewModels;
+using Windows.ApplicationModel;
 using Windows.Graphics;
 using Windows.UI.ViewManagement;
 using Windows.Win32;
@@ -24,7 +26,7 @@ namespace TrayFolder.Views;
 /// reopening soon after is instant; after <see cref="CloseDelay"/> hidden it closes for real and
 /// the next open builds a new window, so the idle app holds no XAML tree.
 /// </summary>
-public sealed partial class TrayFlyoutWindow : WindowEx
+public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
 {
     private const int PopupWidth = 400;
     private const int PopupHeight = 600;
@@ -49,6 +51,11 @@ public sealed partial class TrayFlyoutWindow : WindowEx
 
     private readonly HWND _hwnd;
     private readonly FlyoutPage _page;
+    private readonly IFolderRepository _folders;
+    private readonly IStartupService _startup;
+    private readonly ITextProvider _text;
+    private readonly IErrorReporter _errors;
+    private readonly FileActions _files;
     private readonly ShellBackdrop _backdrop = new();
     private readonly UISettings _uiSettings = new();
     private readonly DispatcherQueueTimer _hideTimer;
@@ -80,11 +87,17 @@ public sealed partial class TrayFlyoutWindow : WindowEx
     private int _currentOffset;
     private double _currentOpacity;
 
-    public TrayFlyoutWindow()
+    public TrayFlyoutWindow(IFolderRepository folders, IStartupService startup, ITextProvider text, IErrorReporter errors)
     {
+        _folders = folders;
+        _startup = startup;
+        _text = text;
+        _errors = errors;
+        _files = new FileActions(() => PopupRoot.XamlRoot?.RasterizationScale ?? 1);
         InitializeComponent();
         _hwnd = (HWND)WindowNative.GetWindowHandle(this);
-        _page = new FlyoutPage(this);
+        _page = new FlyoutPage(this, new FolderViewModel(
+            folders, _files, _files, new FolderWatcher(DispatcherQueue), this, text, TimeProvider.System, errors));
         PageHost.Content = _page;
 
         SystemBackdrop = _backdrop;
@@ -115,10 +128,9 @@ public sealed partial class TrayFlyoutWindow : WindowEx
 
     public bool IsPopupVisible => _isPopupVisible;
 
-    private bool IsShowingMain => ReferenceEquals(PageHost.Content, _page);
+    private IFlyoutPage? CurrentPage => PageHost.Content as IFlyoutPage;
 
-    /// <summary>Pinned: light-dismiss is off, so several files can be dragged out one after another.</summary>
-    public bool IsPinned { get; set; }
+    private bool IsShowingMain => ReferenceEquals(CurrentPage, _page);
 
     /// <summary>Shows the popup, or hides it if already visible (tray-icon click behavior).</summary>
     public void Toggle()
@@ -138,37 +150,17 @@ public sealed partial class TrayFlyoutWindow : WindowEx
         ShowPopup();
     }
 
-    public void ShowMainPage()
-    {
-        if (!IsShowingMain)
-        {
-            ReleaseDetailPage();
-            PageHost.Content = _page;
-        }
+    public void ShowMainPage() => ShowPage(_page);
 
-        if (_isPopupVisible)
-        {
-            _page.OnShown();
-        }
-    }
-
-    public void ShowSettingsPage()
-    {
-        _settingsPage ??= new SettingsPage(this);
-        _page.OnHidden();
-        ReleaseDetailPage();
-        PageHost.Content = _settingsPage;
-        _settingsPage.OnShown();
-    }
+    public void ShowSettingsPage() =>
+        ShowPage(_settingsPage ??= new SettingsPage(new SettingsViewModel(_folders, _startup, this, _text, _errors, GetVersion())));
 
     /// <summary>Previews a file inside the flyout; <paramref name="siblings"/> feeds previous/next.</summary>
-    public void ShowDetailPage(FileItem item, IReadOnlyList<FileItem> siblings)
+    public void ShowDetailPage(FileItemViewModel item, IReadOnlyList<FileItemViewModel> siblings)
     {
-        _detailPage ??= new DetailPage(this);
-        _page.OnHidden();
-        PageHost.Content = _detailPage;
-        _detailPage.Show(item, siblings);
-        _detailPage.OnShown();
+        _detailPage ??= new DetailPage(this, _files, _text, _errors);
+        ShowPage(_detailPage);
+        _ = _detailPage.ViewModel.ShowAsync(item, siblings);
     }
 
     /// <summary>A drag out of the flyout is in progress: don't light-dismiss the drag source mid-drag.</summary>
@@ -187,26 +179,22 @@ public sealed partial class TrayFlyoutWindow : WindowEx
     /// Shows the folder picker over the flyout. The flyout stays open underneath (the picker takes
     /// focus, which would otherwise light-dismiss it) and gets focus back afterwards.
     /// </summary>
-    public async Task<string?> PickFolderAsync(string? startFolder)
+    public async Task<string?> PickFolderAsync(string startFolder, CancellationToken cancellationToken)
     {
         _keepOpenCount++;
         try
         {
             FolderPicker picker = new(AppWindow.Id)
             {
-                CommitButtonText = "Show this folder",
+                CommitButtonText = _text.Get("ShowFolder"),
             };
             if (!string.IsNullOrEmpty(startFolder) && Directory.Exists(startFolder))
             {
                 picker.SuggestedStartFolder = startFolder;
             }
 
-            PickFolderResult? result = await picker.PickSingleFolderAsync();
+            PickFolderResult? result = await picker.PickSingleFolderAsync().AsTask(cancellationToken);
             return string.IsNullOrEmpty(result?.Path) ? null : result.Path;
-        }
-        catch
-        {
-            return null;
         }
         finally
         {
@@ -219,19 +207,30 @@ public sealed partial class TrayFlyoutWindow : WindowEx
         }
     }
 
-    private void ReleaseDetailPage()
+    private void ShowPage(IFlyoutPage page)
     {
-        if (_detailPage is not null)
+        if (!ReferenceEquals(CurrentPage, page))
         {
-            if (ReferenceEquals(PageHost.Content, _detailPage))
-            {
-                PageHost.Content = null;
-            }
+            CurrentPage?.OnHidden();
+            PageHost.Content = page;
 
             // Decoded images, PDF pages and media players are the flyout's heaviest objects.
-            _detailPage.Dispose();
-            _detailPage = null;
+            if (!ReferenceEquals(page, _detailPage))
+            {
+                ReleaseDetailPage();
+            }
         }
+
+        if (_isPopupVisible)
+        {
+            page.OnShown();
+        }
+    }
+
+    private void ReleaseDetailPage()
+    {
+        _detailPage?.Dispose();
+        _detailPage = null;
     }
 
     public void ShowPopup()
@@ -253,15 +252,7 @@ public sealed partial class TrayFlyoutWindow : WindowEx
         this.Show();
         Activate();
         PInvoke.SetForegroundWindow(_hwnd);
-
-        if (IsShowingMain)
-        {
-            _page.OnShown();
-        }
-        else
-        {
-            _detailPage?.OnShown();
-        }
+        CurrentPage?.OnShown();
     }
 
     public void HidePopup()
@@ -276,8 +267,7 @@ public sealed partial class TrayFlyoutWindow : WindowEx
 
         _isPopupVisible = false;
         _lastDismissedAtUtc = DateTime.UtcNow;
-        _page.OnHidden();
-        _detailPage?.OnHidden();
+        CurrentPage?.OnHidden();
         PlayHideAnimation();
 
         _closeTimer.Stop();
@@ -299,9 +289,9 @@ public sealed partial class TrayFlyoutWindow : WindowEx
         _hideTimer.Stop();
         _closeTimer.Stop();
         _animationTimer.Stop();
-        _page.OnHidden();
         _page.Dispose();
         ReleaseDetailPage();
+        _settingsPage?.Dispose();
         _settingsPage = null;
         PageHost.Content = null;
 
@@ -318,6 +308,19 @@ public sealed partial class TrayFlyoutWindow : WindowEx
         if (!_isPopupVisible)
         {
             CloseWindow();
+        }
+    }
+
+    private string GetVersion()
+    {
+        try
+        {
+            PackageVersion version = Package.Current.Id.Version;
+            return $"{App.DisplayName} {version.Major}.{version.Minor}.{version.Build}";
+        }
+        catch (InvalidOperationException)
+        {
+            return $"{App.DisplayName} {_text.Get("Unpackaged")}";
         }
     }
 
@@ -460,7 +463,7 @@ public sealed partial class TrayFlyoutWindow : WindowEx
 
     private bool ShouldRemainVisible(HWND foreground)
     {
-        if (IsPinned || _isDragging || _keepOpenCount > 0)
+        if (_page.ViewModel.IsPinned || _isDragging || _keepOpenCount > 0)
         {
             return true;
         }
