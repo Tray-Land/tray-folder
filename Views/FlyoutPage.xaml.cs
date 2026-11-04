@@ -11,6 +11,7 @@ using System.Windows.Input;
 using TrayFolder.Core;
 using TrayFolder.Services;
 using TrayFolder.ViewModels;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
 using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
@@ -207,6 +208,8 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
             VirtualKey.Enter when IsModifierDown(VirtualKey.Control) => TryExecute(ViewModel.OpenSelectionCommand),
             VirtualKey.E when IsModifierDown(VirtualKey.Control) && IsModifierDown(VirtualKey.Shift) =>
                 TryExecute(ViewModel.ShowSelectionInExplorerCommand),
+            // Delete moves the focused row (or the selection it belongs to) to the Recycle Bin, after any warning.
+            VirtualKey.Delete when plain => DeleteFocusedItem(),
             // The Menu key and Shift+F10 open the row menu, as a right-click does.
             VirtualKey.Application => ShowMenuForFocusedItem(),
             VirtualKey.F10 when IsModifierDown(VirtualKey.Shift) => ShowMenuForFocusedItem(),
@@ -332,6 +335,56 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
         return true;
     }
 
+    private bool DeleteFocusedItem()
+    {
+        FileItemViewModel? item = FocusManager.GetFocusedElement(XamlRoot) is SelectorItem { Content: FileItemViewModel focused }
+            ? focused
+            : ViewModel.SelectedItems.FirstOrDefault();
+        if (item is null)
+        {
+            return false;
+        }
+
+        // The list rebuilds after a delete; keep the keyboard in it.
+        _focusListWhenFilled = true;
+        ViewModel.MenuTarget = item;
+        return TryExecute(ViewModel.DeleteTargetsCommand);
+    }
+
+    private void DeleteSwipe_Invoked(SwipeItem sender, SwipeItemInvokedEventArgs args)
+    {
+        if (args.SwipeControl.DataContext is FileItemViewModel item)
+        {
+            ViewModel.MenuTarget = item;
+            TryExecute(ViewModel.DeleteTargetsCommand);
+        }
+    }
+
+    private void RecycleBin_DragOver(object sender, DragEventArgs e)
+    {
+        // Only rows dragged out of this list can be dropped here, not files from elsewhere.
+        if (!ViewModel.IsDragging)
+        {
+            return;
+        }
+
+        // Copy is the one operation the drag offers (see FileActions.FillDragData); this target just reads it as "delete".
+        e.AcceptedOperation = DataPackageOperation.Copy;
+        e.DragUIOverride.Caption = new ResourceLoader().GetString("DeleteConfirm");
+        e.DragUIOverride.IsGlyphVisible = false;
+        RecycleBinHot.Opacity = 1;
+        e.Handled = true;
+    }
+
+    private void RecycleBin_DragLeave(object sender, DragEventArgs e) => RecycleBinHot.Opacity = 0;
+
+    private void RecycleBin_Drop(object sender, DragEventArgs e)
+    {
+        RecycleBinHot.Opacity = 0;
+        e.Handled = true;
+        TryExecute(ViewModel.DeleteDraggedCommand);
+    }
+
     private bool ShowMenuForFocusedItem()
     {
         if (FocusManager.GetFocusedElement(XamlRoot) is not SelectorItem { Content: FileItemViewModel item } container)
@@ -378,10 +431,16 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
         }
 
         FileActions.FillDragData(e.Data, items, ViewModel.DragTitle(items));
+        ViewModel.BeginDrag(items);
         _host.SetDragging(true);
     }
 
-    private void Items_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args) => _host.SetDragging(false);
+    private void Items_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        ViewModel.EndDrag();
+        RecycleBinHot.Opacity = 0;
+        _host.SetDragging(false);
+    }
 
     private void Items_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
@@ -477,6 +536,8 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
         menu.Items.Add(Item(text.GetString("MenuCopyPath/Text"), "", vm.CopyTargetPathsCommand, "CopyPathMenuItem", "Ctrl+Shift+C"));
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Item(text.GetString("MenuShowInExplorer/Text"), "", vm.ShowTargetInExplorerCommand, "ShowInExplorerMenuItem", "Ctrl+Shift+E"));
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Item(text.GetString("MenuDelete/Text"), "", vm.DeleteTargetsCommand, "DeleteMenuItem", "Del"));
         return menu;
     }
 
