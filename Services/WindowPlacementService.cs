@@ -1,8 +1,8 @@
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Microsoft.UI.Windowing;
-using Microsoft.UI.Xaml;
 using Windows.Graphics;
 using Windows.Win32;
 using Windows.Win32.Foundation;

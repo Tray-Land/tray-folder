@@ -1,6 +1,6 @@
+using Microsoft.UI.Xaml.Media.Imaging;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace TrayFolder.Services;
 
@@ -38,7 +38,7 @@ internal static partial class ShellThumbnail
 
             // IShellItemImageFactory: IUnknown's three slots, then GetImage(SIZE, SIIGBF, HBITMAP*).
             void** vtable = *(void***)factory;
-            var getImage = (delegate* unmanaged[Stdcall]<nint, NativeSize, int, nint*, int>)vtable[3];
+            delegate* unmanaged[Stdcall]<nint, NativeSize, int, nint*, int> getImage = (delegate* unmanaged[Stdcall]<nint, NativeSize, int, nint*, int>)vtable[3];
             if (getImage(factory, new NativeSize { Width = size, Height = size }, SIIGBF_RESIZETOFIT, &bitmap) != 0 || bitmap == 0)
             {
                 return null;
