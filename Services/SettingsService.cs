@@ -44,6 +44,13 @@ internal static class SettingsService
         set => SetJson(nameof(RecentFolders), value, SettingsJsonContext.Default.ListString);
     }
 
+    /// <summary>The global hotkey: Ctrl+Alt+F until the user changes it; null when they turned it off.</summary>
+    public static HotkeyGesture? Hotkey
+    {
+        get => Get<string?>(nameof(Hotkey), null) is { } text ? HotkeyGesture.TryParse(text) : HotkeyGesture.Default;
+        set => Set(nameof(Hotkey), value?.ToString() ?? string.Empty);
+    }
+
     public static FolderViewOptions ViewOptions
     {
         get => GetJson(nameof(ViewOptions), SettingsJsonContext.Default.FolderViewOptions) ?? new FolderViewOptions();

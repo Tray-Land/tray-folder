@@ -27,6 +27,7 @@ public partial class App : Application
     private Mutex? _singleInstanceMutex;
     private EventWaitHandle? _showEvent;
     private RegisteredWaitHandle? _showWait;
+    private HotkeyService? _hotkey;
     private TrayIcon? _trayIcon;
     private TrayFlyoutWindow? _flyout;
     private DispatcherQueue? _dispatcher;
@@ -77,6 +78,9 @@ public partial class App : Application
         _folders.RootChanged += (_, _) => UpdateTrayFolder();
         UpdateTrayFolder();
 
+        _hotkey = new HotkeyService(OnHotkeyPressed);
+        _hotkey.Start();
+
         // First run: show where the app lives instead of launching into silence.
         if (!SettingsService.HasLaunchedBefore)
         {
@@ -108,6 +112,19 @@ public partial class App : Application
         flyout.HidePopup();
         flyout.ShowMainPage();
         flyout.ShowPopup();
+    }
+
+    /// <summary>The global hotkey opens the flyout on the folder list, or hides it when it is already open.</summary>
+    private void OnHotkeyPressed()
+    {
+        if (_flyout is { IsPopupVisible: true })
+        {
+            _flyout.HidePopup();
+        }
+        else
+        {
+            ShowFlyout();
+        }
     }
 
     /// <summary>Settings are a page inside the flyout; this opens the flyout on it.</summary>
@@ -157,7 +174,7 @@ public partial class App : Application
         if (_flyout is null)
         {
             // The flyout closes itself after staying hidden for a while; the next open builds a new one.
-            _flyout = new TrayFlyoutWindow(_folders, new StartupService(), new TextProvider(), new ErrorReporter());
+            _flyout = new TrayFlyoutWindow(_folders, new StartupService(), _hotkey!, new TextProvider(), new ErrorReporter());
             _flyout.Closed += (_, _) =>
             {
                 _flyout = null;
@@ -188,6 +205,8 @@ public partial class App : Application
             _trayIcon = null;
         }
 
+        _hotkey?.Dispose();
+        _hotkey = null;
         _showWait?.Unregister(null);
         _showEvent?.Dispose();
         _singleInstanceMutex?.ReleaseMutex();

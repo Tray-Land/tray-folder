@@ -10,6 +10,16 @@ GetDpiForMonitor
 GetDpiForWindow
 GetForegroundWindow
 GetWindowLong
+CreateWindowEx
+DefWindowProc
+DestroyWindow
+GetModuleHandle
+HOT_KEY_MODIFIERS
+RegisterClass
+RegisterHotKey
+UnregisterClass
+UnregisterHotKey
+WNDCLASSW
 MonitorFromPoint
 NOTIFYICONIDENTIFIER
 RegNotifyChangeKeyValue

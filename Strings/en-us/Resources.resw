@@ -21,6 +21,12 @@
   <data name="SelectedCount" xml:space="preserve"><value>{0} · {1} selected · drag to copy</value></data>
   <data name="CopiedItem" xml:space="preserve"><value>Copied 1 item</value></data>
   <data name="CopiedItems" xml:space="preserve"><value>Copied {0} items</value></data>
+  <data name="CutItem" xml:space="preserve"><value>Cut 1 item. Paste to move it.</value></data>
+  <data name="CutItems" xml:space="preserve"><value>Cut {0} items. Paste to move them.</value></data>
+  <data name="CopiedPath" xml:space="preserve"><value>Copied 1 path</value></data>
+  <data name="CopiedPaths" xml:space="preserve"><value>Copied {0} paths</value></data>
+  <data name="CutDone" xml:space="preserve"><value>Cut</value></data>
+  <data name="MenuCut.Text" xml:space="preserve"><value>Cut</value></data>
   <data name="FileActionFailed" xml:space="preserve"><value>Can't complete this action</value></data>
   <data name="FilterOn" xml:space="preserve"><value>Filter (on)</value></data>
   <data name="Filter" xml:space="preserve"><value>Filter</value></data>
@@ -31,6 +37,12 @@
   <data name="StartupManaged" xml:space="preserve"><value>Managed by your organization.</value></data>
   <data name="StartupUnavailable" xml:space="preserve"><value>Only available when the app is installed.</value></data>
   <data name="StartupReady" xml:space="preserve"><value>Keep the tray icon ready after you sign in.</value></data>
+  <data name="HotkeyOff" xml:space="preserve"><value>Off</value></data>
+  <data name="HotkeyReady" xml:space="preserve"><value>Press {0} anywhere to show or hide the flyout.</value></data>
+  <data name="HotkeyInUse" xml:space="preserve"><value>{0} is used by another app. Choose a different shortcut.</value></data>
+  <data name="HotkeyOffDescription" xml:space="preserve"><value>No shortcut. Open the flyout from the tray icon.</value></data>
+  <data name="HotkeyRecording" xml:space="preserve"><value>Press the new shortcut, or Esc to cancel.</value></data>
+  <data name="HotkeyInvalid" xml:space="preserve"><value>Use Ctrl, Alt, Shift or Win with a letter, number, F key or Space.</value></data>
   <data name="Copy" xml:space="preserve"><value>Copy</value></data>
   <data name="Copied" xml:space="preserve"><value>Copied</value></data>
   <data name="NoPreview" xml:space="preserve"><value>No preview available</value></data>

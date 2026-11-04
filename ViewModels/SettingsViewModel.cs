@@ -9,15 +9,17 @@ public sealed partial class SettingsViewModel : VisibleViewModel
 {
     private readonly IFolderRepository _folders;
     private readonly IStartupService _startup;
+    private readonly IHotkeyService _hotkey;
     private readonly IFlyoutNavigation _navigation;
     private readonly LatestRequest _startupRequest = new();
     private StartupState _startupState;
 
-    public SettingsViewModel(IFolderRepository folders, IStartupService startup, IFlyoutNavigation navigation,
-        ITextProvider text, IErrorReporter errors, string version) : base(text, errors)
+    public SettingsViewModel(IFolderRepository folders, IStartupService startup, IHotkeyService hotkey,
+        IFlyoutNavigation navigation, ITextProvider text, IErrorReporter errors, string version) : base(text, errors)
     {
         _folders = folders;
         _startup = startup;
+        _hotkey = hotkey;
         _navigation = navigation;
         Version = version;
         LoadStartupCommand.PropertyChanged += StartupCommand_PropertyChanged;
@@ -49,11 +51,77 @@ public sealed partial class SettingsViewModel : VisibleViewModel
     [ObservableProperty]
     public partial string StartupDescription { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string HotkeyText { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string HotkeyDescription { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CancelHotkeyRecordingCommand))]
+    public partial bool IsRecordingHotkey { get; private set; }
+
+    [ObservableProperty]
+    public partial bool CanResetHotkey { get; private set; }
+
+    [ObservableProperty]
+    public partial bool CanTurnOffHotkey { get; private set; }
+
+    /// <summary>Applies a shortcut the view captured; a gesture that isn't valid is explained, not applied.</summary>
+    public void SetHotkey(HotkeyGesture gesture)
+    {
+        if (!gesture.IsValid)
+        {
+            RefreshHotkey(Text.Get("HotkeyInvalid"));
+            return;
+        }
+
+        Run("Change hotkey", () =>
+        {
+            _hotkey.Set(gesture);
+            IsRecordingHotkey = false;
+            RefreshHotkey();
+        });
+    }
+
+    [RelayCommand]
+    private void StartHotkeyRecording()
+    {
+        IsRecordingHotkey = true;
+        HotkeyDescription = Text.Get("HotkeyRecording");
+    }
+
+    [RelayCommand(CanExecute = nameof(IsRecordingHotkey))]
+    private void CancelHotkeyRecording()
+    {
+        IsRecordingHotkey = false;
+        RefreshHotkey();
+    }
+
+    [RelayCommand]
+    private void ResetHotkey() => Run("Reset hotkey", () =>
+    {
+        _hotkey.Set(HotkeyGesture.Default);
+        IsRecordingHotkey = false;
+        RefreshHotkey();
+    });
+
+    [RelayCommand]
+    private void TurnOffHotkey() => Run("Turn off hotkey", () =>
+    {
+        _hotkey.Set(null);
+        IsRecordingHotkey = false;
+        RefreshHotkey();
+    });
+
     protected override void OnActivated()
     {
         RefreshFolder();
+        RefreshHotkey();
         _ = LoadStartupCommand.ExecuteAsync(null);
     }
+
+    protected override void OnDeactivated() => IsRecordingHotkey = false;
 
     // Only a change away from the known state is the user's; applying that state lands here too.
     partial void OnIsStartupOnChanged(bool value)
@@ -143,6 +211,20 @@ public sealed partial class SettingsViewModel : VisibleViewModel
         int count = _folders.RecentFolders.Count;
         CanClearRecent = count > 0;
         RecentText = Text.Format(count == 0 ? "NoRecentFolders" : count == 1 ? "RecentFolder" : "RecentFolders", count);
+    }
+
+    private void RefreshHotkey(string? message = null)
+    {
+        HotkeyGesture? gesture = _hotkey.Gesture;
+        HotkeyText = gesture?.ToString() ?? Text.Get("HotkeyOff");
+        CanResetHotkey = gesture != HotkeyGesture.Default;
+        CanTurnOffHotkey = gesture is not null;
+        HotkeyDescription = message ?? (_hotkey.Status switch
+        {
+            HotkeyResult.Registered => Text.Format("HotkeyReady", HotkeyText),
+            HotkeyResult.InUse => Text.Format("HotkeyInUse", HotkeyText),
+            _ => Text.Get("HotkeyOffDescription"),
+        });
     }
 
     private void ApplyStartupState(StartupState state)

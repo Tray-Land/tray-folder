@@ -115,6 +115,12 @@ internal sealed class TestFileActions : IFileActions
         Copies.Add(entries);
         return PendingCopy?.Task ?? Task.CompletedTask;
     }
+    public List<IReadOnlyList<FileEntry>> Cuts { get; } = [];
+    public Task CutAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken)
+    {
+        Cuts.Add(entries);
+        return Task.CompletedTask;
+    }
     public Task CopyPathsAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken)
     {
         PathCopies.Add(entries);
@@ -161,6 +167,17 @@ internal sealed class TestStartup : IStartupService
     {
         WriteCalls.Add((enabled, cancellationToken));
         return Writes.Dequeue().Task;
+    }
+}
+
+internal sealed class TestHotkey : IHotkeyService
+{
+    public HotkeyGesture? Gesture { get; private set; } = HotkeyGesture.Default;
+    public HotkeyResult Status { get; set; } = HotkeyResult.Registered;
+    public HotkeyResult Set(HotkeyGesture? gesture)
+    {
+        Gesture = gesture;
+        return gesture is null ? HotkeyResult.Disabled : Status;
     }
 }
 

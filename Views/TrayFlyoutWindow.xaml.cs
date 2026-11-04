@@ -53,6 +53,7 @@ public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
     private readonly FlyoutPage _page;
     private readonly IFolderRepository _folders;
     private readonly IStartupService _startup;
+    private readonly IHotkeyService _hotkey;
     private readonly ITextProvider _text;
     private readonly IErrorReporter _errors;
     private readonly FileActions _files;
@@ -87,10 +88,11 @@ public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
     private int _currentOffset;
     private double _currentOpacity;
 
-    public TrayFlyoutWindow(IFolderRepository folders, IStartupService startup, ITextProvider text, IErrorReporter errors)
+    public TrayFlyoutWindow(IFolderRepository folders, IStartupService startup, IHotkeyService hotkey, ITextProvider text, IErrorReporter errors)
     {
         _folders = folders;
         _startup = startup;
+        _hotkey = hotkey;
         _text = text;
         _errors = errors;
         _files = new FileActions(() => PopupRoot.XamlRoot?.RasterizationScale ?? 1);
@@ -153,7 +155,7 @@ public sealed partial class TrayFlyoutWindow : WindowEx, IFlyoutNavigation
     public void ShowMainPage() => ShowPage(_page);
 
     public void ShowSettingsPage() =>
-        ShowPage(_settingsPage ??= new SettingsPage(new SettingsViewModel(_folders, _startup, this, _text, _errors, GetVersion())));
+        ShowPage(_settingsPage ??= new SettingsPage(new SettingsViewModel(_folders, _startup, _hotkey, this, _text, _errors, GetVersion())));
 
     /// <summary>Previews a file inside the flyout; <paramref name="siblings"/> feeds previous/next.</summary>
     public void ShowDetailPage(FileItemViewModel item, IReadOnlyList<FileItemViewModel> siblings)

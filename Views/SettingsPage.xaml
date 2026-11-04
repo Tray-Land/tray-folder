@@ -5,6 +5,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="Transparent">
 
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Key="Back" Invoked="Back_Invoked" />
+        <KeyboardAccelerator
+            Key="Left"
+            Invoked="Back_Invoked"
+            Modifiers="Menu" />
+    </Page.KeyboardAccelerators>
+
     <Grid Padding="12,10,12,12" RowSpacing="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -122,6 +130,54 @@
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
+                    CornerRadius="4"
+                    RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Global shortcut" />
+                        <TextBlock
+                            x:Name="HotkeyDescriptionText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.HotkeyDescription, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Row="1"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            x:Name="HotkeyButton"
+                            MinWidth="120"
+                            AutomationProperties.AutomationId="HotkeyButton"
+                            AutomationProperties.Name="Change global shortcut"
+                            Click="HotkeyButton_Click"
+                            Content="{x:Bind ViewModel.HotkeyText, Mode=OneWay}"
+                            LostFocus="HotkeyButton_LostFocus"
+                            PreviewKeyDown="HotkeyButton_PreviewKeyDown" />
+                        <Button
+                            x:Name="ResetHotkeyButton"
+                            AutomationProperties.AutomationId="ResetHotkeyButton"
+                            Command="{x:Bind ViewModel.ResetHotkeyCommand}"
+                            Content="Reset"
+                            Visibility="{x:Bind ViewModel.CanResetHotkey, Mode=OneWay}" />
+                        <Button
+                            x:Name="TurnOffHotkeyButton"
+                            AutomationProperties.AutomationId="TurnOffHotkeyButton"
+                            Command="{x:Bind ViewModel.TurnOffHotkeyCommand}"
+                            Content="Turn off"
+                            Visibility="{x:Bind ViewModel.CanTurnOffHotkey, Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid
+                    Padding="16,12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
                     ColumnSpacing="12"
                     CornerRadius="4">
                     <Grid.ColumnDefinitions>
@@ -153,7 +209,7 @@
                     Margin="0,16,0,0"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="Tip: drag files out of the list, or select them and press Ctrl+C. Sort, filter and view options are the buttons next to Search."
+                    Text="Tip: drag files out of the list, or use the keyboard: Space selects, Ctrl+C copies, Ctrl+X cuts, Ctrl+Shift+C copies the path, Enter previews, Ctrl+Enter opens, and the Menu key opens the row menu. Ctrl+F searches."
                     TextWrapping="Wrap" />
                 <TextBlock
                     x:Name="VersionText"

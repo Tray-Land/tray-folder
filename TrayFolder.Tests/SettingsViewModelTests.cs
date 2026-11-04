@@ -6,8 +6,8 @@ namespace TrayFolder.Tests;
 [TestClass]
 public sealed class SettingsViewModelTests
 {
-    private static SettingsViewModel Create(TestStartup startup, TestErrors? errors = null, TestFolders? folders = null, TestNavigation? navigation = null) =>
-        new(folders ?? new TestFolders(), startup, navigation ?? new TestNavigation(), new TestTextProvider(), errors ?? new TestErrors(), "Test");
+    private static SettingsViewModel Create(TestStartup startup, TestErrors? errors = null, TestFolders? folders = null, TestNavigation? navigation = null, TestHotkey? hotkey = null) =>
+        new(folders ?? new TestFolders(), startup, hotkey ?? new TestHotkey(), navigation ?? new TestNavigation(), new TestTextProvider(), errors ?? new TestErrors(), "Test");
 
     private static async Task<SettingsViewModel> ShowAsync(TestStartup startup, TestErrors? errors = null, TestFolders? folders = null, TestNavigation? navigation = null)
     {
@@ -181,6 +181,90 @@ public sealed class SettingsViewModelTests
 
         Assert.AreEqual(folders.DownloadsPath, vm.FolderPath);
         Assert.IsFalse(vm.CanResetFolder);
+    }
+
+    [TestMethod]
+    public void OnShown_DefaultHotkey_ShowsCtrlAltF()
+    {
+        using SettingsViewModel vm = Create(new TestStartup());
+
+        vm.OnShown();
+
+        Assert.AreEqual("Ctrl+Alt+F", vm.HotkeyText);
+        Assert.IsFalse(vm.CanResetHotkey);
+        Assert.IsTrue(vm.CanTurnOffHotkey);
+    }
+
+    [TestMethod]
+    public void SetHotkey_ValidGesture_AppliesItAndStopsRecording()
+    {
+        TestHotkey hotkey = new();
+        using SettingsViewModel vm = Create(new TestStartup(), hotkey: hotkey);
+        vm.OnShown();
+        vm.StartHotkeyRecordingCommand.Execute(null);
+
+        vm.SetHotkey(new HotkeyGesture(HotkeyModifiers.Control | HotkeyModifiers.Shift, 'K'));
+
+        Assert.AreEqual("Ctrl+Shift+K", hotkey.Gesture?.ToString());
+        Assert.AreEqual("Ctrl+Shift+K", vm.HotkeyText);
+        Assert.IsFalse(vm.IsRecordingHotkey);
+        Assert.IsTrue(vm.CanResetHotkey);
+    }
+
+    [TestMethod]
+    public void SetHotkey_NoModifier_IsRejectedAndKeepsRecording()
+    {
+        TestHotkey hotkey = new();
+        using SettingsViewModel vm = Create(new TestStartup(), hotkey: hotkey);
+        vm.OnShown();
+        vm.StartHotkeyRecordingCommand.Execute(null);
+
+        vm.SetHotkey(new HotkeyGesture(HotkeyModifiers.None, 'K'));
+
+        Assert.AreEqual(HotkeyGesture.Default, hotkey.Gesture);
+        Assert.IsTrue(vm.IsRecordingHotkey);
+        StringAssert.Contains(vm.HotkeyDescription, "Ctrl, Alt, Shift or Win");
+    }
+
+    [TestMethod]
+    public void SetHotkey_InUse_ExplainsTheConflict()
+    {
+        TestHotkey hotkey = new() { Status = HotkeyResult.InUse };
+        using SettingsViewModel vm = Create(new TestStartup(), hotkey: hotkey);
+        vm.OnShown();
+
+        vm.SetHotkey(new HotkeyGesture(HotkeyModifiers.Control | HotkeyModifiers.Alt, 'G'));
+
+        StringAssert.Contains(vm.HotkeyDescription, "used by another app");
+    }
+
+    [TestMethod]
+    public void TurnOffAndResetHotkey_RoundTrip()
+    {
+        TestHotkey hotkey = new();
+        using SettingsViewModel vm = Create(new TestStartup(), hotkey: hotkey);
+        vm.OnShown();
+
+        vm.TurnOffHotkeyCommand.Execute(null);
+        Assert.IsNull(hotkey.Gesture);
+        Assert.AreEqual("Off", vm.HotkeyText);
+        Assert.IsFalse(vm.CanTurnOffHotkey);
+
+        vm.ResetHotkeyCommand.Execute(null);
+        Assert.AreEqual(HotkeyGesture.Default, hotkey.Gesture);
+        Assert.AreEqual("Ctrl+Alt+F", vm.HotkeyText);
+    }
+
+    [TestMethod]
+    public void OnHidden_WhileRecording_StopsRecording()
+    {
+        using SettingsViewModel vm = Create(new TestStartup());
+        vm.OnShown();
+        vm.StartHotkeyRecordingCommand.Execute(null);
+
+        vm.OnHidden();
+
+        Assert.IsFalse(vm.IsRecordingHotkey);
     }
 
     [TestMethod]
