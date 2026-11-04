@@ -250,4 +250,19 @@ public sealed class DetailViewModelTests
         Assert.AreSame(first.Entry, files.Copies.Single().Single());
         Assert.AreEqual("Copy", vm.CopyText);
     }
+
+    [TestMethod]
+    public async Task Cut_PutsTheFileOnTheClipboardToMove()
+    {
+        TestFileActions files = new();
+        FileItemViewModel item = TestEntries.Item("a.txt");
+        using DetailViewModel vm = Create(new TestPreview(), files);
+        vm.OnShown();
+        await vm.ShowAsync(item, [item]);
+
+        await vm.CutCommand.ExecuteAsync(null);
+
+        Assert.AreSame(item.Entry, files.Cuts.Single().Single());
+        Assert.AreEqual("Cut", vm.CopyText);
+    }
 }

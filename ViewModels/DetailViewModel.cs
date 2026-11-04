@@ -180,6 +180,18 @@ public sealed partial class DetailViewModel : VisibleViewModel
         }
     });
 
+    /// <summary>Puts the file on the clipboard to be moved; the Copy button's label confirms it.</summary>
+    [RelayCommand]
+    private Task CutAsync() => RunFileActionAsync(async (item, token) =>
+    {
+        await _files.CutAsync(new[] { item.Entry }, token);
+        token.ThrowIfCancellationRequested();
+        if (ReferenceEquals(Item, item))
+        {
+            CopyText = Text.Get("CutDone");
+        }
+    });
+
     private async Task RenderPageAsync(uint index)
     {
         using LatestRequest.Scope request = _page.Begin(VisibleToken);

@@ -12,10 +12,46 @@
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Key="Left" Invoked="Previous_Invoked" />
         <KeyboardAccelerator Key="Right" Invoked="Next_Invoked" />
+        <KeyboardAccelerator Key="Back" Invoked="Back_Invoked" />
+        <KeyboardAccelerator
+            Key="Left"
+            Invoked="Back_Invoked"
+            Modifiers="Menu" />
         <KeyboardAccelerator
             Key="C"
             Invoked="Copy_Invoked"
             Modifiers="Control" />
+        <KeyboardAccelerator
+            Key="X"
+            Invoked="Cut_Invoked"
+            Modifiers="Control" />
+        <KeyboardAccelerator
+            Key="C"
+            Invoked="CopyPath_Invoked"
+            Modifiers="Control,Shift" />
+        <KeyboardAccelerator Key="Enter" Invoked="Open_Invoked" />
+        <KeyboardAccelerator
+            Key="Enter"
+            Invoked="Open_Invoked"
+            Modifiers="Control" />
+        <KeyboardAccelerator
+            Key="E"
+            Invoked="ShowInExplorer_Invoked"
+            Modifiers="Control,Shift" />
+        <KeyboardAccelerator
+            Key="O"
+            Invoked="OpenWith_Invoked"
+            Modifiers="Control,Shift" />
+        <KeyboardAccelerator Key="Application" Invoked="MoreMenu_Invoked" />
+        <KeyboardAccelerator
+            Key="F10"
+            Invoked="MoreMenu_Invoked"
+            Modifiers="Shift" />
+        <KeyboardAccelerator Key="PageUp" Invoked="PreviousPage_Invoked" />
+        <KeyboardAccelerator Key="PageDown" Invoked="NextPage_Invoked" />
+        <KeyboardAccelerator Key="Up" Invoked="FocusHeader_Invoked" />
+        <KeyboardAccelerator Key="Down" Invoked="FocusActions_Invoked" />
+        <KeyboardAccelerator Key="Space" Invoked="PlayPause_Invoked" />
     </Page.KeyboardAccelerators>
 
     <Grid Padding="12,10,12,12" RowSpacing="10">
@@ -246,7 +282,12 @@
             Severity="Warning" />
 
         <!--  Actions  -->
-        <Grid Grid.Row="4" ColumnSpacing="6">
+        <!--  Left/Right move between these buttons (XY focus); elsewhere on the page they step through the files.  -->
+        <Grid
+            x:Name="ActionRow"
+            Grid.Row="4"
+            ColumnSpacing="6"
+            XYFocusKeyboardNavigation="Enabled">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
@@ -254,6 +295,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button
+                x:Name="OpenButton"
                 HorizontalAlignment="Stretch"
                 AutomationProperties.AutomationId="OpenFileButton"
                 AutomationProperties.Name="Open"
@@ -290,6 +332,7 @@
                 </StackPanel>
             </Button>
             <Button
+                x:Name="MoreButton"
                 Grid.Column="3"
                 AutomationProperties.AutomationId="MoreFileActionsButton"
                 AutomationProperties.Name="More actions"
@@ -298,8 +341,18 @@
                 <Button.Flyout>
                     <MenuFlyout Placement="TopEdgeAlignedRight">
                         <MenuFlyoutItem
+                            AutomationProperties.AutomationId="CutFileMenuItem"
+                            Command="{x:Bind ViewModel.CutCommand}"
+                            KeyboardAcceleratorTextOverride="Ctrl+X"
+                            Text="Cut">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE8C6;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem
                             AutomationProperties.AutomationId="OpenWithMenuItem"
                             Command="{x:Bind ViewModel.OpenWithCommand}"
+                            KeyboardAcceleratorTextOverride="Ctrl+Shift+O"
                             Text="Open with…">
                             <MenuFlyoutItem.Icon>
                                 <FontIcon Glyph="&#xE7AC;" />
@@ -308,6 +361,7 @@
                         <MenuFlyoutItem
                             AutomationProperties.AutomationId="CopyFilePathMenuItem"
                             Command="{x:Bind ViewModel.CopyPathsCommand}"
+                            KeyboardAcceleratorTextOverride="Ctrl+Shift+C"
                             Text="Copy as path">
                             <MenuFlyoutItem.Icon>
                                 <FontIcon Glyph="&#xE62F;" />
