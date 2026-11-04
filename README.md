@@ -87,10 +87,10 @@ Use `-SkipRelease` to build and sign only, or `-SkipRelease -NoSign` to check th
 ```
 App.xaml.cs        Tray icon, single instance, and the only exit path (no main window)
 Views/             TrayFlyoutWindow hosts FlyoutPage (list), DetailPage (preview + info), SettingsPage
-Core/              Pure logic: FolderViewPolicy (sort/filter/group), FileKinds, view options
-Services/          Folder reading and watching, drag data, shell thumbnails, settings (JSON), startup, placement
-Models/            FileItem and FileGroup, the UI-facing rows
-TrayFolder.Tests/  Unit tests for Core
+ViewModels/        State and behavior of each page and row, with the MVVM Toolkit; no WinRT types
+Core/              Pure logic: FolderViewPolicy (sort/filter/group), FileKinds, view options, service interfaces
+Services/          Folder reading and watching, previews, drag data, shell thumbnails, settings (JSON), startup, placement
+TrayFolder.Tests/  Unit tests for Core and ViewModels
 ```
 
 A few design choices worth knowing about:
