@@ -36,6 +36,8 @@ Tray Folder is a small, tray-only WinUI 3 app for Windows 10 and 11. It has no m
 
 ## Install
 
+[<img src="docs/MSIX.svg" alt="Install TrayFolder (MSIX)" width="212">](https://github.com/Tray-Land/tray-folder/releases/latest/download/TrayFolder.appinstaller)
+
 Download [TrayFolder.appinstaller](https://github.com/Tray-Land/tray-folder/releases/latest/download/TrayFolder.appinstaller) and open it. Windows installs the right version for your PC (x64 or ARM64) and keeps it updated.
 
 Requires Windows 10 (2004) or later, or Windows 11.
