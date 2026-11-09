@@ -1,42 +1,47 @@
+using System.Runtime.InteropServices;
+using TrayFolder.Core;
 using Windows.ApplicationModel;
 
 namespace TrayFolder.Services;
 
-/// <summary>Wraps the MSIX "start with Windows" task declared in Package.appxmanifest.</summary>
-internal static class StartupService
+internal sealed class StartupService : IStartupService
 {
     private const string TaskId = "TrayFolderStartup";
 
-    /// <summary>Returns the current state, or null when the app runs unpackaged.</summary>
-    public static async Task<StartupTaskState?> GetStateAsync()
+    public async Task<StartupState> GetStateAsync(CancellationToken cancellationToken)
     {
         try
         {
-            StartupTask task = await StartupTask.GetAsync(TaskId);
-            return task.State;
+            StartupTask task = await StartupTask.GetAsync(TaskId).AsTask(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            return Map(task.State);
         }
-        catch
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x80073D54))
         {
-            return null;
+            return StartupState.Unavailable;
         }
     }
 
-    public static async Task<StartupTaskState?> SetEnabledAsync(bool enabled)
+    public async Task<StartupState> SetEnabledAsync(bool enabled, CancellationToken cancellationToken)
     {
-        try
+        StartupTask task = await StartupTask.GetAsync(TaskId).AsTask(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (enabled)
         {
-            StartupTask task = await StartupTask.GetAsync(TaskId);
-            if (enabled)
-            {
-                return await task.RequestEnableAsync();
-            }
+            return Map(await task.RequestEnableAsync().AsTask(cancellationToken));
+        }
 
-            task.Disable();
-            return task.State;
-        }
-        catch
-        {
-            return null;
-        }
+        task.Disable();
+        return Map(task.State);
     }
+
+    private static StartupState Map(StartupTaskState state) => state switch
+    {
+        StartupTaskState.Disabled => StartupState.Disabled,
+        StartupTaskState.Enabled => StartupState.Enabled,
+        StartupTaskState.DisabledByUser => StartupState.DisabledByUser,
+        StartupTaskState.DisabledByPolicy => StartupState.DisabledByPolicy,
+        StartupTaskState.EnabledByPolicy => StartupState.EnabledByPolicy,
+        _ => throw new ArgumentOutOfRangeException(nameof(state)),
+    };
 }

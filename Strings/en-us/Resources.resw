@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="TodayTime" xml:space="preserve"><value>Today {0}</value></data>
+  <data name="YesterdayTime" xml:space="preserve"><value>Yesterday {0}</value></data>
+  <data name="FolderDetails" xml:space="preserve"><value>{0} · Folder</value></data>
+  <data name="FileDetails" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="FileAccessibleName" xml:space="preserve"><value>{0}, {1}</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>The operation could not be completed: {0}</value></data>
+  <data name="FolderMissing" xml:space="preserve"><value>Can't find this folder</value></data>
+  <data name="FolderMoved" xml:space="preserve"><value>{0} was moved or deleted.</value></data>
+  <data name="FolderUnreadable" xml:space="preserve"><value>Can't read this folder</value></data>
+  <data name="FolderEmpty" xml:space="preserve"><value>This folder is empty.</value></data>
+  <data name="NothingMatches" xml:space="preserve"><value>Nothing here matches.</value></data>
+  <data name="ItemCount" xml:space="preserve"><value>1 item</value></data>
+  <data name="ItemsCount" xml:space="preserve"><value>{0} items</value></data>
+  <data name="FilteredCount" xml:space="preserve"><value>{0} of {1} items</value></data>
+  <data name="SelectedCount" xml:space="preserve"><value>{0} · {1} selected · drag to copy</value></data>
+  <data name="CopiedItem" xml:space="preserve"><value>Copied 1 item</value></data>
+  <data name="CopiedItems" xml:space="preserve"><value>Copied {0} items</value></data>
+  <data name="CutItem" xml:space="preserve"><value>Cut 1 item. Paste to move it.</value></data>
+  <data name="CutItems" xml:space="preserve"><value>Cut {0} items. Paste to move them.</value></data>
+  <data name="CopiedPath" xml:space="preserve"><value>Copied 1 path</value></data>
+  <data name="CopiedPaths" xml:space="preserve"><value>Copied {0} paths</value></data>
+  <data name="CutDone" xml:space="preserve"><value>Cut</value></data>
+  <data name="MenuCut.Text" xml:space="preserve"><value>Cut</value></data>
+  <data name="FileActionFailed" xml:space="preserve"><value>Can't complete this action</value></data>
+  <data name="FilterOn" xml:space="preserve"><value>Filter (on)</value></data>
+  <data name="Filter" xml:space="preserve"><value>Filter</value></data>
+  <data name="NoRecentFolders" xml:space="preserve"><value>None yet.</value></data>
+  <data name="RecentFolder" xml:space="preserve"><value>1 folder in the folder menu.</value></data>
+  <data name="RecentFolders" xml:space="preserve"><value>{0} folders in the folder menu.</value></data>
+  <data name="StartupDisabledByUser" xml:space="preserve"><value>Turned off in Settings &gt; Apps &gt; Startup. Turn it on there.</value></data>
+  <data name="StartupManaged" xml:space="preserve"><value>Managed by your organization.</value></data>
+  <data name="StartupUnavailable" xml:space="preserve"><value>Only available when the app is installed.</value></data>
+  <data name="StartupReady" xml:space="preserve"><value>Keep the tray icon ready after you sign in.</value></data>
+  <data name="HotkeyOff" xml:space="preserve"><value>Off</value></data>
+  <data name="HotkeyReady" xml:space="preserve"><value>Press {0} anywhere to show or hide the flyout.</value></data>
+  <data name="HotkeyInUse" xml:space="preserve"><value>{0} is used by another app. Choose a different shortcut.</value></data>
+  <data name="HotkeyOffDescription" xml:space="preserve"><value>No shortcut. Open the flyout from the tray icon.</value></data>
+  <data name="HotkeyRecording" xml:space="preserve"><value>Press the new shortcut, or Esc to cancel.</value></data>
+  <data name="HotkeyInvalid" xml:space="preserve"><value>Use Ctrl, Alt, Shift or Win with a letter, number, F key or Space.</value></data>
+  <data name="Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Copied" xml:space="preserve"><value>Copied</value></data>
+  <data name="NoPreview" xml:space="preserve"><value>No preview available</value></data>
+  <data name="PreviewFailed" xml:space="preserve"><value>Can't preview this file</value></data>
+  <data name="FileMoved" xml:space="preserve"><value>This file was moved or deleted</value></data>
+  <data name="FileType" xml:space="preserve"><value>File</value></data>
+  <data name="PdfPage" xml:space="preserve"><value>{0} / {1}</value></data>
+  <data name="PageCount" xml:space="preserve"><value>1 page</value></data>
+  <data name="PagesCount" xml:space="preserve"><value>{0} pages</value></data>
+  <data name="TextTruncated" xml:space="preserve"><value>{0}
+
+… (showing the first {1} KB)</value></data>
+  <data name="TypeLabel" xml:space="preserve"><value>Type</value></data>
+  <data name="PagesLabel" xml:space="preserve"><value>Pages</value></data>
+  <data name="DimensionsLabel" xml:space="preserve"><value>Dimensions</value></data>
+  <data name="SizeLabel" xml:space="preserve"><value>Size</value></data>
+  <data name="ModifiedLabel" xml:space="preserve"><value>Modified</value></data>
+  <data name="CreatedLabel" xml:space="preserve"><value>Created</value></data>
+  <data name="LocationLabel" xml:space="preserve"><value>Location</value></data>
+  <data name="SizeWithBytes" xml:space="preserve"><value>{0} ({1} bytes)</value></data>
+  <data name="ShowFolder" xml:space="preserve"><value>Show this folder</value></data>
+  <data name="Unpackaged" xml:space="preserve"><value>(unpackaged)</value></data>
+  <data name="ActionError.Title" xml:space="preserve"><value>Can't complete this action</value></data>
+  <data name="Preview" xml:space="preserve"><value>Preview</value></data>
+  <data name="OpenFolderHere" xml:space="preserve"><value>Open folder here</value></data>
+  <data name="MenuOpen.Text" xml:space="preserve"><value>Open</value></data>
+  <data name="MenuOpenWith.Text" xml:space="preserve"><value>Open with…</value></data>
+  <data name="MenuCopy.Text" xml:space="preserve"><value>Copy</value></data>
+  <data name="MenuCopyPath.Text" xml:space="preserve"><value>Copy as path</value></data>
+  <data name="MenuShowInExplorer.Text" xml:space="preserve"><value>Show in File Explorer</value></data>
+  <data name="ChooseFolder.Text" xml:space="preserve"><value>Choose folder…</value></data>
+  <data name="SortName.Text" xml:space="preserve"><value>Name</value></data>
+  <data name="SortModified.Text" xml:space="preserve"><value>Date modified</value></data>
+  <data name="SortType.Text" xml:space="preserve"><value>Type</value></data>
+  <data name="SortSize.Text" xml:space="preserve"><value>Size</value></data>
+  <data name="Ascending.Text" xml:space="preserve"><value>Ascending</value></data>
+  <data name="Descending.Text" xml:space="preserve"><value>Descending</value></data>
+  <data name="GroupBy.Text" xml:space="preserve"><value>Group by</value></data>
+  <data name="Kind.Text" xml:space="preserve"><value>Kind</value></data>
+  <data name="NoGrouping.Text" xml:space="preserve"><value>(None)</value></data>
+  <data name="AnyTime.Text" xml:space="preserve"><value>Any time</value></data>
+  <data name="Today.Text" xml:space="preserve"><value>Today</value></data>
+  <data name="PastWeek.Text" xml:space="preserve"><value>Past week</value></data>
+  <data name="PastMonth.Text" xml:space="preserve"><value>Past month</value></data>
+  <data name="PastYear.Text" xml:space="preserve"><value>Past year</value></data>
+  <data name="ShowFolders.Text" xml:space="preserve"><value>Show folders</value></data>
+  <data name="ClearFilters.Text" xml:space="preserve"><value>Clear filters</value></data>
+  <data name="ListView.Text" xml:space="preserve"><value>List</value></data>
+  <data name="TilesView.Text" xml:space="preserve"><value>Tiles</value></data>
+  <data name="Extensions.Text" xml:space="preserve"><value>File name extensions</value></data>
+  <data name="HiddenItems.Text" xml:space="preserve"><value>Hidden items</value></data>
+  <data name="MenuDelete.Text" xml:space="preserve"><value>Delete</value></data>
+  <data name="SwipeDelete.Text" xml:space="preserve"><value>Delete</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="DeleteConfirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>
+  <data name="DeleteConfirmOne" xml:space="preserve"><value>Delete “{0}”?</value></data>
+  <data name="DeleteConfirmMany" xml:space="preserve"><value>Delete {0} items?</value></data>
+  <data name="DeleteWarnMany" xml:space="preserve"><value>That's a lot of items at once: {0}.</value></data>
+  <data name="DeleteWarnFolders" xml:space="preserve"><value>Folders ({0}) go with everything inside them.</value></data>
+  <data name="DeleteWarnPrograms" xml:space="preserve"><value>Includes programs, installers or scripts ({0}).</value></data>
+  <data name="DeleteWarnSystem" xml:space="preserve"><value>Includes system files ({0}). Deleting them can break Windows or apps.</value></data>
+  <data name="DeleteWarnReadOnly" xml:space="preserve"><value>Includes read-only files ({0}), which are marked as protected.</value></data>
+  <data name="DeleteWarnLarge" xml:space="preserve"><value>About {0} of data.</value></data>
+  <data name="DeleteWarnRecycle" xml:space="preserve"><value>They'll be moved to the Recycle Bin, where you can restore them.</value></data>
+  <data name="DeletedOne" xml:space="preserve"><value>Deleted “{0}”</value></data>
+  <data name="DeletedMany" xml:space="preserve"><value>Deleted {0} items</value></data>
+  <data name="RestoredItem" xml:space="preserve"><value>Restored 1 item</value></data>
+  <data name="RestoredItems" xml:space="preserve"><value>Restored {0} items</value></data>
+  <data name="RestoreIncompleteTitle" xml:space="preserve"><value>Couldn't restore everything</value></data>
+  <data name="RestoreIncomplete" xml:space="preserve"><value>{0} not restored: the name is taken or Windows already emptied it from the Recycle Bin.</value></data>
+  <data name="UndoDelete.Content" xml:space="preserve"><value>Undo delete</value></data>
+  <data name="DismissNotice.AutomationProperties.Name" xml:space="preserve"><value>Dismiss</value></data>
+  <data name="RecycleBinDrop.Text" xml:space="preserve"><value>Drop here to delete</value></data>
+</root>

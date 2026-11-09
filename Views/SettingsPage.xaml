@@ -5,6 +5,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="Transparent">
 
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Key="Back" Invoked="Back_Invoked" />
+        <KeyboardAccelerator
+            Key="Left"
+            Invoked="Back_Invoked"
+            Modifiers="Menu" />
+    </Page.KeyboardAccelerators>
+
     <Grid Padding="12,10,12,12" RowSpacing="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -18,8 +26,9 @@
             </Grid.ColumnDefinitions>
             <Button
                 x:Name="BackButton"
+                AutomationProperties.AutomationId="SettingsBackButton"
                 AutomationProperties.Name="Back"
-                Click="BackButton_Click"
+                Command="{x:Bind ViewModel.BackCommand}"
                 Style="{StaticResource FlyoutIconButtonStyle}"
                 ToolTipService.ToolTip="Back">
                 <FontIcon FontSize="14" Glyph="&#xE72B;" />
@@ -34,6 +43,12 @@
 
         <ScrollViewer Grid.Row="1">
             <StackPanel Spacing="4">
+                <InfoBar
+                    x:Uid="ActionError"
+                    IsClosable="False"
+                    IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                    Severity="Warning" />
                 <TextBlock
                     Margin="0,4,0,4"
                     Style="{StaticResource BodyStrongTextBlockStyle}"
@@ -54,6 +69,7 @@
                         <TextBlock Text="Show this folder" />
                         <TextBlock
                             x:Name="FolderPathText"
+                            Text="{x:Bind ViewModel.FolderPath, Mode=OneWay}"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             IsTextSelectionEnabled="True"
                             Style="{StaticResource CaptionTextBlockStyle}"
@@ -63,10 +79,15 @@
                         Grid.Row="1"
                         Orientation="Horizontal"
                         Spacing="8">
-                        <Button Click="ChangeFolder_Click" Content="Change folder…" />
+                        <Button
+                            AutomationProperties.AutomationId="ChangeFolderButton"
+                            Command="{x:Bind ViewModel.ChooseFolderCommand}"
+                            Content="Change folder…" />
                         <Button
                             x:Name="ResetFolderButton"
-                            Click="ResetFolder_Click"
+                            AutomationProperties.AutomationId="ResetFolderButton"
+                            Command="{x:Bind ViewModel.ResetFolderCommand}"
+                            Visibility="{x:Bind ViewModel.CanResetFolder, Mode=OneWay}"
                             Content="Use Downloads" />
                     </StackPanel>
                 </Grid>
@@ -86,14 +107,16 @@
                         <TextBlock Text="Recent folders" />
                         <TextBlock
                             x:Name="RecentText"
+                            Text="{x:Bind ViewModel.RecentText, Mode=OneWay}"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"
                             TextWrapping="Wrap" />
                     </StackPanel>
                     <Button
                         x:Name="ClearRecentButton"
+                        AutomationProperties.AutomationId="ClearRecentButton"
                         Grid.Column="1"
-                        Click="ClearRecent_Click"
+                        Command="{x:Bind ViewModel.ClearRecentCommand}"
                         Content="Clear" />
                 </Grid>
 
@@ -101,6 +124,54 @@
                     Margin="0,16,0,4"
                     Style="{StaticResource BodyStrongTextBlockStyle}"
                     Text="General" />
+
+                <Grid
+                    Padding="16,12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Global shortcut" />
+                        <TextBlock
+                            x:Name="HotkeyDescriptionText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.HotkeyDescription, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Row="1"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            x:Name="HotkeyButton"
+                            MinWidth="120"
+                            AutomationProperties.AutomationId="HotkeyButton"
+                            AutomationProperties.Name="Change global shortcut"
+                            Click="HotkeyButton_Click"
+                            Content="{x:Bind ViewModel.HotkeyText, Mode=OneWay}"
+                            LostFocus="HotkeyButton_LostFocus"
+                            PreviewKeyDown="HotkeyButton_PreviewKeyDown" />
+                        <Button
+                            x:Name="ResetHotkeyButton"
+                            AutomationProperties.AutomationId="ResetHotkeyButton"
+                            Command="{x:Bind ViewModel.ResetHotkeyCommand}"
+                            Content="Reset"
+                            Visibility="{x:Bind ViewModel.CanResetHotkey, Mode=OneWay}" />
+                        <Button
+                            x:Name="TurnOffHotkeyButton"
+                            AutomationProperties.AutomationId="TurnOffHotkeyButton"
+                            Command="{x:Bind ViewModel.TurnOffHotkeyCommand}"
+                            Content="Turn off"
+                            Visibility="{x:Bind ViewModel.CanTurnOffHotkey, Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
 
                 <Grid
                     Padding="16,12"
@@ -119,28 +190,30 @@
                             x:Name="StartupDescription"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="Keep the tray icon ready after you sign in."
+                            Text="{x:Bind ViewModel.StartupDescription, Mode=OneWay}"
                             TextWrapping="Wrap" />
                     </StackPanel>
                     <ToggleSwitch
                         x:Name="StartupToggle"
+                        AutomationProperties.AutomationId="StartupToggle"
                         Grid.Column="1"
                         MinWidth="0"
                         AutomationProperties.Name="Start with Windows"
-                        IsEnabled="False"
+                        IsEnabled="{x:Bind ViewModel.CanChangeStartup, Mode=OneWay}"
+                        IsOn="{x:Bind ViewModel.IsStartupOn, Mode=TwoWay}"
                         OffContent=""
-                        OnContent=""
-                        Toggled="StartupToggle_Toggled" />
+                        OnContent="" />
                 </Grid>
 
                 <TextBlock
                     Margin="0,16,0,0"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="Tip: drag files out of the list, or select them and press Ctrl+C. Sort, filter and view options are the buttons next to Search."
+                    Text="Tip: drag files out of the list, or use the keyboard: Space selects, Ctrl+C copies, Ctrl+X cuts, Ctrl+Shift+C copies the path, Enter previews, Ctrl+Enter opens, and the Menu key opens the row menu. Ctrl+F searches."
                     TextWrapping="Wrap" />
                 <TextBlock
                     x:Name="VersionText"
+                    Text="{x:Bind ViewModel.Version, Mode=OneTime}"
                     Margin="0,8,0,0"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}" />

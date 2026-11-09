@@ -12,6 +12,7 @@ Tray Folder is a small, tray-only WinUI 3 app for Windows 10 and 11. It has no m
 
 - **Drag files out.** Drag one or many files from the flyout into Outlook, Teams, Slack, a browser upload box, a Word document or any other drop target. Drags are copy-only, so nothing moves or gets deleted. You can also select files and press <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 - **Newest first.** By default the list is sorted by date modified, newest first, and grouped the way Explorer groups Downloads (Today, Yesterday, Earlier this week, and so on).
+- **Delete to the Recycle Bin.** Press <kbd>Delete</kbd> on a focused row, use the row's context menu, swipe a list row left on a touch screen, or drag files onto the bin that appears at the bottom while you drag. Files go to the Recycle Bin like in Explorer, and an "Undo delete" pill restores them for a few seconds. Before anything is touched, you're asked to confirm a large delete (10 or more items, or 1 GB or more) or one that includes folders, programs or scripts, system files or read-only files. Drags to other apps stay copy-only.
 - **Pin it open.** The pin button keeps the flyout open while you drag several files, one after another.
 - **Explorer-style view options.** Sort by name, date, type or size. Group by name, date, kind or size. Filter by kind (image, video, audio, document, archive, program) or by age (today, last week, month, year). Show or hide folders, hidden files and file extensions. Switch between a list and tiles.
 - **Search.** Type to filter the folder as you go.
@@ -34,6 +35,8 @@ Tray Folder is a small, tray-only WinUI 3 app for Windows 10 and 11. It has no m
 | <kbd>Esc</kbd> | Step back: detail or settings to the list, then clear the search, then hide the flyout |
 
 ## Install
+
+[<img src="docs/MSIX.svg" alt="Install TrayFolder (MSIX)" width="212">](https://github.com/Tray-Land/tray-folder/releases/latest/download/TrayFolder.appinstaller)
 
 Download [TrayFolder.appinstaller](https://github.com/Tray-Land/tray-folder/releases/latest/download/TrayFolder.appinstaller) and open it. Windows installs the right version for your PC (x64 or ARM64) and keeps it updated.
 
@@ -87,10 +90,10 @@ Use `-SkipRelease` to build and sign only, or `-SkipRelease -NoSign` to check th
 ```
 App.xaml.cs        Tray icon, single instance, and the only exit path (no main window)
 Views/             TrayFlyoutWindow hosts FlyoutPage (list), DetailPage (preview + info), SettingsPage
-Core/              Pure logic: FolderViewPolicy (sort/filter/group), FileKinds, view options
-Services/          Folder reading and watching, drag data, shell thumbnails, settings (JSON), startup, placement
-Models/            FileItem and FileGroup, the UI-facing rows
-TrayFolder.Tests/  Unit tests for Core
+ViewModels/        State and behavior of each page and row, with the MVVM Toolkit; no WinRT types
+Core/              Pure logic: FolderViewPolicy (sort/filter/group), FileKinds, view options, service interfaces
+Services/          Folder reading and watching, previews, drag data, shell thumbnails, settings (JSON), startup, placement
+TrayFolder.Tests/  Unit tests for Core and ViewModels
 ```
 
 A few design choices worth knowing about:

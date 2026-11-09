@@ -1,37 +1,45 @@
 using System.Diagnostics;
-using TrayFolder.Models;
+using TrayFolder.Core;
+using TrayFolder.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 
 namespace TrayFolder.Services;
 
-/// <summary>What the user can do with files: drag them out, copy them, open them, find them.</summary>
-internal static class FileActions
+/// <summary>Files as the shell sees them: storage items, thumbnails, the clipboard, and launching.</summary>
+/// <param name="rasterizationScale">Physical pixels per layout pixel, for thumbnail sizes. Read on the UI thread.</param>
+internal sealed class FileActions(Func<double> rasterizationScale) : IFileActions, IFileResources
 {
-    /// <summary>
-    /// Fills a drag's DataPackage with the files. Drag events are synchronous, so rows whose
-    /// StorageItem is already resolved (the pointer-press prefetch nearly always gets there first)
-    /// go in directly; otherwise the package promises the items and resolves them on drop.
-    /// </summary>
-    public static void FillDragData(DataPackage data, IReadOnlyList<FileItem> items)
-    {
-        // Copy, never move: a drop on a folder on the same drive would otherwise take the file
-        // out of the watched folder.
-        data.RequestedOperation = DataPackageOperation.Copy;
-        data.Properties.Title = items.Count == 1 ? items[0].Entry.Name : $"{items.Count} items";
+    /// <summary>Resolves on a worker thread: on the UI thread this can pump messages inside a layout callback, which XAML fails fast on.</summary>
+    public static Task<IStorageItem> ResolveStorageItemAsync(FileEntry entry, CancellationToken cancellationToken) =>
+        Task.Run(async () => entry.IsFolder
+            ? (IStorageItem)await StorageFolder.GetFolderFromPathAsync(entry.FullPath).AsTask(cancellationToken)
+            : await StorageFile.GetFileFromPathAsync(entry.FullPath).AsTask(cancellationToken), cancellationToken);
 
+    public static void FillDragData(DataPackage data, IReadOnlyList<FileItemViewModel> items, string title)
+    {
+        data.RequestedOperation = DataPackageOperation.Copy;
+        data.Properties.Title = title;
         if (items.All(i => i.StorageItem is not null))
         {
-            data.SetStorageItems(items.Select(i => i.StorageItem!), readOnly: false);
+            data.SetStorageItems(items.Select(i => (IStorageItem)i.StorageItem!), readOnly: false);
             return;
         }
 
+        FileEntry[] entries = [.. items.Select(i => i.Entry)];
         data.SetDataProvider(StandardDataFormats.StorageItems, async request =>
         {
             DataProviderDeferral deferral = request.GetDeferral();
             try
             {
-                request.SetData(await ResolveAsync(items));
+                // This is the drop target's one-shot transfer, not a task owned by the hidden view.
+                IStorageItem[] resolved = await Task.WhenAll(entries.Select(e => ResolveStorageItemAsync(e, CancellationToken.None)));
+                request.SetData(resolved);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Resolve drag data failed: {ex}");
+                throw;
             }
             finally
             {
@@ -40,59 +48,67 @@ internal static class FileActions
         });
     }
 
-    /// <summary>Puts the files on the clipboard, like Ctrl+C in Explorer, so they paste into mail or a folder.</summary>
-    public static async Task<bool> CopyToClipboardAsync(IReadOnlyList<FileItem> items)
-    {
-        List<IStorageItem> storage = await ResolveAsync(items);
-        if (storage.Count == 0)
-        {
-            return false;
-        }
+    public async Task<object> ResolveAsync(FileEntry entry, CancellationToken cancellationToken) =>
+        await ResolveStorageItemAsync(entry, cancellationToken);
 
-        DataPackage data = new() { RequestedOperation = DataPackageOperation.Copy };
-        data.SetStorageItems(storage, readOnly: false);
-        Clipboard.SetContent(data);
-        Clipboard.Flush();
-        return true;
+    public async Task<object?> LoadThumbnailAsync(string path, uint size, CancellationToken cancellationToken)
+    {
+        int pixelSize = (int)Math.Ceiling(size * rasterizationScale());
+        ShellThumbnail.Pixels? pixels = await Task.Run(() => ShellThumbnail.Load(path, pixelSize), cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return pixels is null ? null : ShellThumbnail.ToImage(pixels);
     }
 
-    /// <summary>Explorer's "Copy as path": quoted full paths, one per line.</summary>
-    public static void CopyPaths(IEnumerable<FileItem> items)
+    public Task CopyAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken) =>
+        SetClipboardFilesAsync(entries, DataPackageOperation.Copy, cancellationToken);
+
+    public Task CutAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken) =>
+        SetClipboardFilesAsync(entries, DataPackageOperation.Move, cancellationToken);
+
+    private static async Task SetClipboardFilesAsync(
+        IReadOnlyList<FileEntry> entries, DataPackageOperation operation, CancellationToken cancellationToken)
     {
+        IStorageItem[] resolved = await Task.WhenAll(entries.Select(e => ResolveStorageItemAsync(e, cancellationToken)));
+        cancellationToken.ThrowIfCancellationRequested();
+        if (resolved.Length == 0)
+        {
+            throw new InvalidOperationException("No files were selected.");
+        }
+
+        DataPackage data = new() { RequestedOperation = operation };
+        data.SetStorageItems(resolved, readOnly: false);
+        Clipboard.SetContent(data);
+        Clipboard.Flush();
+    }
+
+    public Task CopyPathsAsync(IReadOnlyList<FileEntry> entries, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         DataPackage data = new();
-        data.SetText(string.Join(Environment.NewLine, items.Select(i => $"\"{i.FullPath}\"")));
+        data.SetText(string.Join(Environment.NewLine, entries.Select(i => $"\"{i.FullPath}\"")));
         Clipboard.SetContent(data);
         Clipboard.Flush();
+        return Task.CompletedTask;
     }
 
-    public static bool Open(string path) => Shell(path, null);
+    public Task OpenAsync(string path, CancellationToken cancellationToken) => ShellAsync(path, null, cancellationToken);
 
-    public static bool OpenWith(string path) => Shell("rundll32.exe", $"shell32.dll,OpenAs_RunDLL {path}");
+    public Task OpenWithAsync(string path, CancellationToken cancellationToken) =>
+        ShellAsync("rundll32.exe", $"shell32.dll,OpenAs_RunDLL {path}", cancellationToken);
 
-    public static bool ShowInExplorer(string path) => Shell("explorer.exe", $"/select,\"{path}\"");
+    public Task ShowInExplorerAsync(string path, CancellationToken cancellationToken) =>
+        ShellAsync("explorer.exe", $"/select,\"{path}\"", cancellationToken);
 
-    public static bool OpenFolder(string path) => Shell("explorer.exe", $"\"{path}\"");
+    public Task OpenFolderAsync(string path, CancellationToken cancellationToken) =>
+        ShellAsync("explorer.exe", $"\"{path}\"", cancellationToken);
 
-    private static async Task<List<IStorageItem>> ResolveAsync(IEnumerable<FileItem> items)
+    private static Task ShellAsync(string file, string? arguments, CancellationToken cancellationToken) => Task.Run(() =>
     {
-        IStorageItem?[] resolved = await Task.WhenAll(items.Select(i => i.GetStorageItemAsync()));
-        return resolved.OfType<IStorageItem>().ToList();
-    }
-
-    private static bool Shell(string file, string? arguments)
-    {
-        try
+        cancellationToken.ThrowIfCancellationRequested();
+        using Process? process = Process.Start(new ProcessStartInfo(file)
         {
-            using Process? _ = Process.Start(new ProcessStartInfo(file)
-            {
-                Arguments = arguments ?? string.Empty,
-                UseShellExecute = true,
-            });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+            Arguments = arguments ?? string.Empty,
+            UseShellExecute = true,
+        });
+    }, cancellationToken);
 }

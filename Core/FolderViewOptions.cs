@@ -1,3 +1,5 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace TrayFolder.Core;
 
 public enum SortField
@@ -40,7 +42,9 @@ public sealed record FileEntry(
     long Size,
     DateTime Modified,
     DateTime Created,
-    bool IsHidden)
+    bool IsHidden,
+    bool IsSystem = false,
+    bool IsReadOnly = false)
 {
     public string Extension => IsFolder ? string.Empty : Path.GetExtension(Name);
 
@@ -49,29 +53,38 @@ public sealed record FileEntry(
 
 /// <summary>
 /// The Explorer-style view settings the user picks in the flyout: sort, group, filter and layout.
-/// Mutable so the options menus can flip one field and persist the whole thing as JSON.
+/// Observable so the options menus bind straight to it; persisted whole as JSON.
 /// </summary>
-public sealed class FolderViewOptions
+public sealed partial class FolderViewOptions : ObservableObject
 {
     // Defaults suit the main use: the newest download first, grouped the way Explorer groups Downloads.
-    public SortField SortBy { get; set; } = SortField.DateModified;
+    [ObservableProperty]
+    public partial SortField SortBy { get; set; } = SortField.DateModified;
 
-    public bool Descending { get; set; } = true;
+    [ObservableProperty]
+    public partial bool Descending { get; set; } = true;
 
-    public GroupField GroupBy { get; set; } = GroupField.DateModified;
+    [ObservableProperty]
+    public partial GroupField GroupBy { get; set; } = GroupField.DateModified;
 
-    public ViewMode View { get; set; } = ViewMode.List;
+    [ObservableProperty]
+    public partial ViewMode View { get; set; } = ViewMode.List;
 
-    public DateFilter Date { get; set; } = DateFilter.Any;
+    [ObservableProperty]
+    public partial DateFilter Date { get; set; } = DateFilter.Any;
 
-    /// <summary>Kinds to show; empty means every kind.</summary>
-    public List<FileKind> Kinds { get; set; } = [];
+    /// <summary>Kinds to show; empty means every kind. Replace the list to change it, so bindings hear about it.</summary>
+    [ObservableProperty]
+    public partial List<FileKind> Kinds { get; set; } = [];
 
-    public bool ShowFolders { get; set; } = true;
+    [ObservableProperty]
+    public partial bool ShowFolders { get; set; } = true;
 
-    public bool ShowHidden { get; set; }
+    [ObservableProperty]
+    public partial bool ShowHidden { get; set; }
 
-    public bool ShowExtensions { get; set; } = true;
+    [ObservableProperty]
+    public partial bool ShowExtensions { get; set; } = true;
 
     public bool IsFiltered => Kinds.Count > 0 || Date != DateFilter.Any || !ShowFolders;
 }

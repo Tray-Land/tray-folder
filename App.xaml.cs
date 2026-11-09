@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System.Diagnostics;
 using TrayFolder.Services;
 using TrayFolder.Views;
 using WinUIEx;
@@ -22,9 +23,11 @@ public partial class App : Application
     // Startup leaves JIT and first-request state behind that the idle app never touches again.
     private static readonly TimeSpan StartupTrimDelay = TimeSpan.FromSeconds(30);
 
+    private readonly FolderRepository _folders = new();
     private Mutex? _singleInstanceMutex;
     private EventWaitHandle? _showEvent;
     private RegisteredWaitHandle? _showWait;
+    private HotkeyService? _hotkey;
     private TrayIcon? _trayIcon;
     private TrayFlyoutWindow? _flyout;
     private DispatcherQueue? _dispatcher;
@@ -72,12 +75,17 @@ public partial class App : Application
             (_, _) => _dispatcher.TryEnqueue(ShowFlyout), null, Timeout.Infinite, executeOnlyOnce: false);
 
         InitializeTrayIcon();
-        SetTrayFolder(FolderService.DisplayName(FolderService.RootPath));
+        _folders.RootChanged += (_, _) => UpdateTrayFolder();
+        UpdateTrayFolder();
+
+        _hotkey = new HotkeyService(OnHotkeyPressed);
+        _hotkey.Start();
 
         // First run: show where the app lives instead of launching into silence.
         if (!SettingsService.HasLaunchedBefore)
         {
-            SettingsService.HasLaunchedBefore = true;
+            try { SettingsService.HasLaunchedBefore = true; }
+            catch (Exception ex) { Debug.WriteLine($"Save first-launch setting failed: {ex}"); }
             ShowFlyout();
         }
         else
@@ -86,15 +94,15 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Sets the tray tooltip to name the folder a click opens, or just the app name for null.</summary>
-    public void SetTrayFolder(string? folderName)
+    /// <summary>Sets the tray tooltip to name the folder a click opens.</summary>
+    private void UpdateTrayFolder()
     {
         if (_trayIcon is null)
         {
             return;
         }
 
-        string tooltip = string.IsNullOrWhiteSpace(folderName) ? DisplayName : $"{DisplayName}\nOpens {folderName}";
+        string tooltip = $"{DisplayName}\nOpens {_folders.DisplayName(_folders.RootPath)}";
         _trayIcon.Tooltip = tooltip.Length > MaxTooltipLength ? tooltip[..MaxTooltipLength] : tooltip;
     }
 
@@ -104,6 +112,19 @@ public partial class App : Application
         flyout.HidePopup();
         flyout.ShowMainPage();
         flyout.ShowPopup();
+    }
+
+    /// <summary>The global hotkey opens the flyout on the folder list, or hides it when it is already open.</summary>
+    private void OnHotkeyPressed()
+    {
+        if (_flyout is { IsPopupVisible: true })
+        {
+            _flyout.HidePopup();
+        }
+        else
+        {
+            ShowFlyout();
+        }
     }
 
     /// <summary>Settings are a page inside the flyout; this opens the flyout on it.</summary>
@@ -153,7 +174,7 @@ public partial class App : Application
         if (_flyout is null)
         {
             // The flyout closes itself after staying hidden for a while; the next open builds a new one.
-            _flyout = new TrayFlyoutWindow();
+            _flyout = new TrayFlyoutWindow(_folders, new StartupService(), _hotkey!, new TextProvider(), new ErrorReporter());
             _flyout.Closed += (_, _) =>
             {
                 _flyout = null;
@@ -184,6 +205,8 @@ public partial class App : Application
             _trayIcon = null;
         }
 
+        _hotkey?.Dispose();
+        _hotkey = null;
         _showWait?.Unregister(null);
         _showEvent?.Dispose();
         _singleInstanceMutex?.ReleaseMutex();

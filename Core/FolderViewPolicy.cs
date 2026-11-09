@@ -22,7 +22,7 @@ public static class FolderViewPolicy
         DateTime now,
         DayOfWeek firstDayOfWeek)
     {
-        List<FileEntry> visible = entries.Where(e => IsVisible(e, options, search, now)).ToList();
+        List<FileEntry> visible = [.. entries.Where(e => IsVisible(e, options, search, now))];
         visible.Sort(Comparer(options));
 
         if (options.GroupBy == GroupField.None)

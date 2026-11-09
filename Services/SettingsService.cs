@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -43,6 +44,13 @@ internal static class SettingsService
         set => SetJson(nameof(RecentFolders), value, SettingsJsonContext.Default.ListString);
     }
 
+    /// <summary>The global hotkey: Ctrl+Alt+F until the user changes it; null when they turned it off.</summary>
+    public static HotkeyGesture? Hotkey
+    {
+        get => Get<string?>(nameof(Hotkey), null) is { } text ? HotkeyGesture.TryParse(text) : HotkeyGesture.Default;
+        set => Set(nameof(Hotkey), value?.ToString() ?? string.Empty);
+    }
+
     public static FolderViewOptions ViewOptions
     {
         get => GetJson(nameof(ViewOptions), SettingsJsonContext.Default.FolderViewOptions) ?? new FolderViewOptions();
@@ -60,8 +68,9 @@ internal static class SettingsService
         {
             return JsonSerializer.Deserialize(json, typeInfo);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            Debug.WriteLine($"Read JSON setting failed: {ex}");
             return default;
         }
     }
@@ -77,28 +86,22 @@ internal static class SettingsService
                 ? typed
                 : defaultValue;
         }
-        catch
+        catch (Exception ex)
         {
+            Debug.WriteLine($"Read setting failed: {ex}");
             return defaultValue;
         }
     }
 
     private static void Set(string key, object? value)
     {
-        try
+        if (value is null)
         {
-            if (value is null)
-            {
-                ApplicationData.Current.LocalSettings.Values.Remove(key);
-            }
-            else
-            {
-                ApplicationData.Current.LocalSettings.Values[key] = value;
-            }
+            ApplicationData.Current.LocalSettings.Values.Remove(key);
         }
-        catch
+        else
         {
-            // Settings are best-effort; ignore storage failures.
+            ApplicationData.Current.LocalSettings.Values[key] = value;
         }
     }
 }

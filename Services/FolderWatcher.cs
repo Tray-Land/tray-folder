@@ -1,12 +1,13 @@
 using Microsoft.UI.Dispatching;
+using TrayFolder.Core;
 
 namespace TrayFolder.Services;
 
 /// <summary>
-/// Watches the shown folder only while the flyout is visible, and coalesces bursts of changes
-/// (a browser writing a download fires dozens) into one <see cref="Changed"/> on the UI thread.
+/// Coalesces bursts of changes in a folder (a browser writing a download fires dozens) into one
+/// <see cref="Changed"/> on the UI thread.
 /// </summary>
-internal sealed class FolderWatcher : IDisposable
+internal sealed class FolderWatcher : IFolderWatcher
 {
     private static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(400);
 
@@ -60,8 +61,6 @@ internal sealed class FolderWatcher : IDisposable
             _watcher = null;
         }
     }
-
-    public void Dispose() => Stop();
 
     // Raised on a thread-pool thread; the timer belongs to the UI thread.
     private void OnChanged(object sender, EventArgs e) => _dispatcher.TryEnqueue(() =>

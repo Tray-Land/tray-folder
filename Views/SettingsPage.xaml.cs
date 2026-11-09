@@ -1,105 +1,87 @@
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using TrayFolder.Services;
-using Windows.ApplicationModel;
+using Microsoft.UI.Xaml.Input;
+using TrayFolder.Core;
+using TrayFolder.ViewModels;
+using Windows.System;
+using Windows.UI.Core;
 
 namespace TrayFolder.Views;
 
-/// <summary>Settings as a page inside the flyout: the folder to show, recent folders, start with Windows.</summary>
-public sealed partial class SettingsPage : Page
+public sealed partial class SettingsPage : Page, IFlyoutPage
 {
-    private readonly TrayFlyoutWindow _host;
-    private bool _loading = true;
-
-    public SettingsPage(TrayFlyoutWindow host)
+    public SettingsPage(SettingsViewModel viewModel)
     {
+        ViewModel = viewModel;
         InitializeComponent();
-        _host = host;
-        VersionText.Text = $"{App.DisplayName} {GetVersion()}";
     }
 
-    /// <summary>Re-reads everything: the startup task may have changed in Windows Settings meanwhile.</summary>
+    public SettingsViewModel ViewModel { get; }
+
     public void OnShown()
     {
-        ShowFolder();
-        _ = LoadStartupStateAsync();
+        ViewModel.OnShown();
         BackButton.Focus(FocusState.Programmatic);
     }
 
-    private void ShowFolder()
-    {
-        string root = FolderService.RootPath;
-        FolderPathText.Text = root;
-        ResetFolderButton.Visibility = string.Equals(root, FolderService.DownloadsPath, StringComparison.OrdinalIgnoreCase)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+    public void OnHidden() => ViewModel.OnHidden();
 
-        int recent = SettingsService.RecentFolders.Count;
-        RecentText.Text = recent == 0 ? "None yet." : recent == 1 ? "1 folder in the folder menu." : $"{recent} folders in the folder menu.";
-        ClearRecentButton.IsEnabled = recent > 0;
-    }
+    public void Dispose() => ViewModel.Dispose();
 
-    private static string GetVersion()
+    // Backspace and Alt+Left go back to the list, unless the shortcut recorder is listening for keys.
+    private void Back_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        try
+        if (ViewModel.IsRecordingHotkey)
         {
-            PackageVersion v = Package.Current.Id.Version;
-            return $"{v.Major}.{v.Minor}.{v.Build}";
+            return;
         }
-        catch
+
+        if (ViewModel.BackCommand.CanExecute(null))
         {
-            return "(unpackaged)";
+            ViewModel.BackCommand.Execute(null);
         }
+
+        args.Handled = true;
     }
 
-    private async Task LoadStartupStateAsync() => ShowStartupState(await StartupService.GetStateAsync());
+    private void HotkeyButton_Click(object sender, RoutedEventArgs e) => ViewModel.StartHotkeyRecordingCommand.Execute(null);
 
-    private void ShowStartupState(StartupTaskState? state)
+    private void HotkeyButton_LostFocus(object sender, RoutedEventArgs e) => ViewModel.CancelHotkeyRecordingCommand.Execute(null);
+
+    // Raw input only a view can read: turn the pressed combination into a gesture for the ViewModel.
+    private void HotkeyButton_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        _loading = true;
-        StartupToggle.IsOn = state is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy;
-
-        // The user (Task Manager, Settings > Apps > Startup) or policy has the final say; the app
-        // can't override it, so say where to change it instead of offering a dead toggle.
-        StartupToggle.IsEnabled = state is StartupTaskState.Enabled or StartupTaskState.Disabled;
-        StartupDescription.Text = state switch
+        if (!ViewModel.IsRecordingHotkey)
         {
-            StartupTaskState.DisabledByUser => "Turned off in Settings > Apps > Startup. Turn it on there.",
-            StartupTaskState.DisabledByPolicy or StartupTaskState.EnabledByPolicy => "Managed by your organization.",
-            null => "Only available when the app is installed.",
-            _ => "Keep the tray icon ready after you sign in.",
-        };
-        _loading = false;
-    }
-
-    private async void StartupToggle_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (!_loading)
-        {
-            ShowStartupState(await StartupService.SetEnabledAsync(StartupToggle.IsOn));
+            return;
         }
-    }
 
-    private async void ChangeFolder_Click(object sender, RoutedEventArgs e)
-    {
-        if (await _host.PickFolderAsync(FolderService.RootPath) is { } path)
+        VirtualKey key = e.Key;
+        if (key is VirtualKey.Shift or VirtualKey.Control or VirtualKey.Menu or VirtualKey.LeftWindows or
+            VirtualKey.RightWindows or VirtualKey.LeftShift or VirtualKey.RightShift or VirtualKey.LeftControl or
+            VirtualKey.RightControl or VirtualKey.LeftMenu or VirtualKey.RightMenu)
         {
-            FolderService.SetRoot(path);
-            ShowFolder();
+            e.Handled = true; // wait for the key that completes the shortcut
+            return;
         }
+
+        e.Handled = true;
+        if (key == VirtualKey.Escape)
+        {
+            ViewModel.CancelHotkeyRecordingCommand.Execute(null);
+            return;
+        }
+
+        HotkeyModifiers modifiers = HotkeyModifiers.None;
+        if (IsDown(VirtualKey.Control)) { modifiers |= HotkeyModifiers.Control; }
+        if (IsDown(VirtualKey.Menu)) { modifiers |= HotkeyModifiers.Alt; }
+        if (IsDown(VirtualKey.Shift)) { modifiers |= HotkeyModifiers.Shift; }
+        if (IsDown(VirtualKey.LeftWindows) || IsDown(VirtualKey.RightWindows)) { modifiers |= HotkeyModifiers.Windows; }
+
+        ViewModel.SetHotkey(new HotkeyGesture(modifiers, (uint)key));
     }
 
-    private void ResetFolder_Click(object sender, RoutedEventArgs e)
-    {
-        FolderService.SetRoot(FolderService.DownloadsPath);
-        ShowFolder();
-    }
-
-    private void ClearRecent_Click(object sender, RoutedEventArgs e)
-    {
-        FolderService.ClearRecent();
-        ShowFolder();
-    }
-
-    private void BackButton_Click(object sender, RoutedEventArgs e) => _host.ShowMainPage();
+    private static bool IsDown(VirtualKey key) =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
 }
