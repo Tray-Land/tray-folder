@@ -59,7 +59,7 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
         // Coming back from the preview or settings doesn't rebuild the list, so also focus it as soon as it has laid out.
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
-            if (ViewModel.IsVisible && FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
+            if (ViewModel.IsVisible && XamlRoot is { } root && FocusManager.GetFocusedElement(root) is not TextBox)
             {
                 ActiveView.Focus(FocusState.Keyboard);
             }
@@ -155,9 +155,16 @@ public sealed partial class FlyoutPage : Page, IFlyoutPage
             _focusListWhenFilled = false;
 
             // Leave focus alone if the user has already moved on, for example into the search box.
-            if (FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
+            if (XamlRoot is { } root && FocusManager.GetFocusedElement(root) is not TextBox)
             {
-                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => ActiveView.Focus(FocusState.Keyboard));
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+                {
+                    if (ViewModel.IsVisible && XamlRoot is { } currentRoot &&
+                        FocusManager.GetFocusedElement(currentRoot) is not TextBox)
+                    {
+                        ActiveView.Focus(FocusState.Keyboard);
+                    }
+                });
             }
         }
     }
